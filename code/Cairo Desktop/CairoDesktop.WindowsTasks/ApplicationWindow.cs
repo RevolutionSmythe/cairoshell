@@ -13,6 +13,7 @@ namespace CairoDesktop.WindowsTasks
     public class ApplicationWindow : IEquatable<ApplicationWindow>, ICairoNotifyPropertyChanged
     {
         private bool _isActive;
+        private WINDOWPLACEMENT _lastWindowPlacement;
 
         public ApplicationWindow(IntPtr handle, WindowsTasksService sourceService)
         {
@@ -162,12 +163,26 @@ namespace CairoDesktop.WindowsTasks
 
         public void BringToFront()
         {
-            ShowWindow(this.Handle, WindowShowStyle.Restore);
+            if (_lastWindowPlacement.length != 0)
+            {
+                ShowWindow (this.Handle, (WindowShowStyle)_lastWindowPlacement.showCmd);
+                _lastWindowPlacement.length = 0;
+            }
+            else
+            {
+                WINDOWPLACEMENT placement;
+                GetWindowPlacement (this.Handle, out placement);
+                if (placement.showCmd == (int)WindowShowStyle.ShowMinimized)
+                    ShowWindow (this.Handle, WindowShowStyle.Restore);
+            }
             SetForegroundWindow(this.Handle);
         }
 
         public void Minimize()
         {
+            _lastWindowPlacement = new WINDOWPLACEMENT ();
+            _lastWindowPlacement.length = Marshal.SizeOf (_lastWindowPlacement);
+            GetWindowPlacement (this.Handle, out _lastWindowPlacement);
             //...In your code some where: show a form, without making it active
             ShowWindow(this.Handle, WindowShowStyle.Minimize);
         }
@@ -191,6 +206,39 @@ namespace CairoDesktop.WindowsTasks
         }
 
         #region P/Invoke Declarations
+
+        /// <summary>
+        /// Retrieves the show state and the restored, minimized, and maximized positions of the specified window.
+        /// </summary>
+        /// <param name="hWnd">
+        /// A handle to the window.
+        /// </param>
+        /// <param name="lpwndpl">
+        /// A pointer to the WINDOWPLACEMENT structure that receives the show state and position information.
+        /// <para>
+        /// Before calling GetWindowPlacement, set the length member to sizeof(WINDOWPLACEMENT). GetWindowPlacement fails if lpwndpl-> length is not set correctly.
+        /// </para>
+        /// </param>
+        /// <returns>
+        /// If the function succeeds, the return value is nonzero.
+        /// <para>
+        /// If the function fails, the return value is zero. To get extended error information, call GetLastError.
+        /// </para>
+        /// </returns>
+        [DllImport ("user32.dll", SetLastError = true)]
+        [return: MarshalAs (UnmanagedType.Bool)]
+        private static extern bool GetWindowPlacement (IntPtr hWnd, out WINDOWPLACEMENT lpwndpl);
+
+        private struct WINDOWPLACEMENT
+        {
+            public int length;
+            public int flags;
+            public int showCmd;
+            public System.Drawing.Point ptMinPosition;
+            public System.Drawing.Point ptMaxPosition;
+            public System.Drawing.Rectangle rcNormalPosition;
+        }
+
         [DllImport("user32.dll")]
         private static extern int GetWindowTextLength(IntPtr hwnd);
 

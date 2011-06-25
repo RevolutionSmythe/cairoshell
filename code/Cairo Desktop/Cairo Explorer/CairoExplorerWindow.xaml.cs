@@ -37,5 +37,15 @@ namespace CairoExplorer
             this.BoltMenu.IsOpen = true;
             this.BoltMenu.StaysOpen = false;
         }
+
+        private void Image_ImageFailed (object sender, ExceptionRoutedEventArgs e)
+        {
+
+        }
+
+        private void Button_Click (object sender, RoutedEventArgs e)
+        {
+
+        }
     }
 }

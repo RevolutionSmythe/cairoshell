@@ -753,11 +753,11 @@
             <Separator Width="15"
                 Background="{x:Null}" />
             <Button Style="{StaticResource CairoExplorerToolbarButtonSplitFirst}"
-                ToolTip="Back">
+                ToolTip="Back" Click="Button_Click">
                 <Button.Content>
                     <Image Source="Resources\backGlyph.png"
                         Width="9"
-                        Height="14" />
+                        Height="14" ImageFailed="Image_ImageFailed" />
                 </Button.Content>
             </Button>
             <Button Style="{StaticResource CairoExplorerToolbarButtonSplitLast}"

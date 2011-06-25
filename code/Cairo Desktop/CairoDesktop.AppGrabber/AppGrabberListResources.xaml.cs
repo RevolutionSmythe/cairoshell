@@ -112,14 +112,19 @@ namespace CairoDesktop.AppGrabber {
                     e.Effects = DragDropEffects.Move;
                 }
                 ApplicationInfo dropData = e.Data.GetData(typeof(ApplicationInfo)) as ApplicationInfo;
-                if (e.Effects == DragDropEffects.Move) {
+                if (e.Effects == DragDropEffects.Move)
+                {
                     (sourceView.ItemsSource as IList<ApplicationInfo>).Remove(dropData);
-                    if (dropTarget.ItemsSource is Category) {
-                        if ((sourceView.ItemsSource as Category).Name != "Quick Launch") {
-                            ((dropTarget.ItemsSource) as IList<ApplicationInfo>).Add(dropData);
+                    if (dropTarget.ItemsSource is Category)
+                    {
+                        if ((sourceView.ItemsSource as Category).Name != "Quick Launch")
+                        {
+                            ((dropTarget.ItemsSource) as IList<ApplicationInfo>).Add (dropData);
                         }
-                    } else {
-                        ((dropTarget.ItemsSource) as IList<ApplicationInfo>).Add(dropData);
+                    }
+                    else
+                    {
+                        ((dropTarget.ItemsSource) as IList<ApplicationInfo>).Add (dropData);
                     }
                 } else if (e.Effects == DragDropEffects.Copy) {
                     ApplicationInfo dropClone = dropData.Clone();
