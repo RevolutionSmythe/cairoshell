@@ -58,7 +58,8 @@ namespace CairoDesktop.AppGrabber
                 }
             }
             AppViewSorter.Sort(installedAppsCollection, "Name");
-            AppViewSorter.Sort(programsMenuAppsCollection, "Name");
+            AppViewSorter.Sort (programsMenuAppsCollection, "Name");
+            GC.Collect ();
         }
 
         void programsMenuAppsCollection_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) {

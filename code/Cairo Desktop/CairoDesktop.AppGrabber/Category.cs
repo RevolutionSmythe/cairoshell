@@ -88,6 +88,8 @@ namespace CairoDesktop.AppGrabber {
         /// </summary>
         /// <param name="items">List of Application infos to add.</param>
         public void Add(ApplicationInfo ai) {
+            if (ai.Icon == null)
+                ai.Icon = ai.GetAssociatedIcon ();
             this.internalList.Add(ai);
             ai.Category = this;
             if (CollectionChanged != null) {

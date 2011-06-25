@@ -173,7 +173,7 @@ namespace CairoDesktop.AppGrabber
                         }
 
                         //_logger.Debug("Attempting to get associated icon for {0}", file.FullName);
-                        ai.Icon = ai.GetAssociatedIcon();
+                        //ai.Icon = ai.GetAssociatedIcon();
                         rval.Add(ai);
                     }
                     catch (Exception ex)

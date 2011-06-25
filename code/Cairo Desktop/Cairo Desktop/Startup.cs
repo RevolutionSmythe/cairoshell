@@ -100,7 +100,7 @@
                 TaskbarWindow = new Taskbar() { Owner = _parentWindow };
                 TaskbarWindow.Show();
             }
-            
+
             app.Run();
 
         }
