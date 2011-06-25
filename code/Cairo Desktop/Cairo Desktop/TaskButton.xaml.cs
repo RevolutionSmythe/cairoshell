@@ -89,5 +89,20 @@ namespace CairoDesktop
                 SendMessage(handle, WM_COMMAND, WM_CLOSE, 0);
             }
         }
+
+        private void Add_To_Task_Click (object sender, RoutedEventArgs e)
+        {
+            var windowObject = this.DataContext as CairoDesktop.WindowsTasks.ApplicationWindow;
+            if (windowObject != null)
+            {
+                System.Diagnostics.Process process = Cairo.WindowsHooksWrapper.NativeMethods.GetProcess (windowObject.Handle);
+                AppGrabber.ApplicationInfo info = new AppGrabber.ApplicationInfo (process.MainWindowTitle, process.MainModule.FileName, null);
+                info.Icon = info.GetAssociatedIcon ();
+                AppGrabber.Category c = AppGrabber.AppGrabber.Instance.CategoryList.GetCategory ("Uncategorized");
+                c.Add (info);
+                AppGrabber.AppGrabber.Instance.CategoryList.Remove (c);
+                AppGrabber.AppGrabber.Instance.CategoryList.Add (c);
+            }
+        }
 	}
 }

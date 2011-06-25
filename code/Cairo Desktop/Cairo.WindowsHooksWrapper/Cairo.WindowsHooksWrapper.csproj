@@ -55,6 +55,7 @@
     <Compile Include="Delegates.cs" />
     <Compile Include="InteropCalls.cs" />
     <Compile Include="IWindowsHooksWrapper.cs" />
+    <Compile Include="NativeWindowFilePath.cs" />
     <Compile Include="NIM.cs" />
     <Compile Include="NOTIFYICONDATA.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

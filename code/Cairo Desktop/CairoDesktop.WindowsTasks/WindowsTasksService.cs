@@ -127,15 +127,15 @@ namespace CairoDesktop.WindowsTasks
                         {
                             case HSHELL_WINDOWCREATED:
                                 Trace.WriteLine("Created: " + msg.LParam.ToString());
-                                Windows.Add(win);
+                                if(win.Title != "")
+                                    Windows.Add(win);
                                 break;
 
                             case HSHELL_WINDOWDESTROYED:
                                 Trace.WriteLine("Destroyed: " + msg.LParam.ToString());
                                 if (this.Windows.Contains(win))
-                                {
                                     this.Windows.Remove(win);
-                                }
+
                                 break;
 
                             case HSHELL_WINDOWREPLACING:
