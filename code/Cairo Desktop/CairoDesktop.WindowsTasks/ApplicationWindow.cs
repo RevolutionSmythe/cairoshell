@@ -227,9 +227,9 @@ namespace CairoDesktop.WindowsTasks
         /// </returns>
         [DllImport ("user32.dll", SetLastError = true)]
         [return: MarshalAs (UnmanagedType.Bool)]
-        private static extern bool GetWindowPlacement (IntPtr hWnd, out WINDOWPLACEMENT lpwndpl);
+        public static extern bool GetWindowPlacement (IntPtr hWnd, out WINDOWPLACEMENT lpwndpl);
 
-        private struct WINDOWPLACEMENT
+        public struct WINDOWPLACEMENT
         {
             public int length;
             public int flags;

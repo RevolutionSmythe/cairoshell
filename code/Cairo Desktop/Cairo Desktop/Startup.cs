@@ -134,6 +134,18 @@
             {
                 if (msg.LParam == IntPtr.Zero)
                     return;
+                //Failed attempt to resize windows so that they are under the task bar
+                /*CairoDesktop.WindowsTasks.ApplicationWindow.WINDOWPLACEMENT placement;
+                CairoDesktop.WindowsTasks.ApplicationWindow.GetWindowPlacement (msg.LParam, out placement);
+                int newHeight = placement.rcNormalPosition.Bottom - placement.rcNormalPosition.Top;
+                newHeight -= 8;
+                int width = placement.rcNormalPosition.Right - placement.rcNormalPosition.Left;
+                if (newHeight <= 0 || width <= 0)
+                    return;
+                var win = new CairoDesktop.WindowsTasks.ApplicationWindow (msg.LParam, null);
+                CairoDesktop.SupportingClasses.NativeMethods.SetWindowPos (msg.LParam,
+                                    (IntPtr)0, placement.rcNormalPosition.X, placement.rcNormalPosition.Y + 17, width, newHeight, 0);
+                */
                 try
                 {
                     switch (msg.WParam.ToInt32 ())
@@ -162,12 +174,12 @@
 
                         case CairoDesktop.WindowsTasks.WindowsTasksService.HSHELL_WINDOWACTIVATED:
                         case CairoDesktop.WindowsTasks.WindowsTasksService.HSHELL_RUDEAPPACTIVATED:
-                            CairoDesktop.SupportingClasses.NativeMethods.SetWindowPos (MenuBarPtr,
+                            /*CairoDesktop.SupportingClasses.NativeMethods.SetWindowPos (MenuBarPtr,
                                 (IntPtr)CairoDesktop.SupportingClasses.NativeMethods.HWND_TOPMOST, 0, 0, 0, 0, 0x0001 | 0x0002);
                             if(TaskBarPtr != IntPtr.Zero)
                                 CairoDesktop.SupportingClasses.NativeMethods.SetWindowPos (TaskBarPtr,
                                     (IntPtr)CairoDesktop.SupportingClasses.NativeMethods.HWND_TOPMOST, 0, 0, 0, 0, 0x0001 | 0x0002);
-                            break;
+                            */break;
 
                         default:
                             Trace.WriteLine ("Uknown called. " + msg.Msg.ToString ());
