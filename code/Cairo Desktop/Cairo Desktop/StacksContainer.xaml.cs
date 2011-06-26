@@ -204,11 +204,30 @@ namespace CairoDesktop {
         {
             Locations.Remove((sender as MenuItem).CommandParameter as SystemDirectory);
         }
-        
-        private void Open_Click(object sender, RoutedEventArgs e)
+
+        private void Open_Click (object sender, RoutedEventArgs e)
         {
-            System.Diagnostics.Debug.WriteLine(sender.GetType().ToString());
-            openDir((sender as MenuItem).CommandParameter.ToString());
+            System.Diagnostics.Debug.WriteLine (sender.GetType ().ToString ());
+            openDir ((sender as MenuItem).CommandParameter.ToString ());
+        }
+
+        private void Rename_Click (object sender, RoutedEventArgs e)
+        {
+            string result = CairoMessage.ShowTextField ("Rename?", "Rename");
+            if (string.IsNullOrEmpty(result))
+                return;
+            string[] pieces = (((CairoDesktop.SystemDirectory)(sender as MenuItem).CommandParameter).DirectoryInfo.FullName).Split(System.IO.Path.DirectorySeparatorChar);
+            List<string> parts = new List<string>(pieces);
+            parts.RemoveAt(pieces.Length - 1);
+            string rootPath = string.Join(System.IO.Path.DirectorySeparatorChar.ToString(), parts.ToArray());
+            string newPath = System.IO.Path.Combine (rootPath, result);
+            try
+            {
+                Directory.Move (((sender as MenuItem).CommandParameter as CairoDesktop.SystemDirectory).DirectoryInfo.FullName, newPath);
+            }
+            catch
+            {
+            }
         }
         
         /// <summary>

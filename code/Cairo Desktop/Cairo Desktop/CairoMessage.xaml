@@ -111,5 +111,6 @@
                 Style="{StaticResource CairoButtonStyle}"
                 Visibility="{Binding ElementName=messageWindow, Path=Buttons, Converter={StaticResource MessageBoxButtonConverter}, ConverterParameter=Cancel}" />
         </StackPanel>
+        <TextBox Grid.Column="2" Grid.Row="3" Height="23" HorizontalAlignment="Left" Margin="0,60,0,0" Name="userTextField" VerticalAlignment="Top" Width="397" Visibility="Hidden" Grid.ColumnSpan="3" />
     </Grid>
 </Window>

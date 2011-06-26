@@ -82,15 +82,36 @@
         /// <param name="message">The message to display.</param>
         /// <param name="title">The title of the dialog.</param>
         /// <returns>Nullable bool indicating user response.</returns>
-        public static bool? Show(string message, string title)
+        public static bool? Show (string message, string title)
         {
-            CairoMessage msgDialog = new CairoMessage();
+            CairoMessage msgDialog = new CairoMessage ();
             msgDialog.Message = message;
             msgDialog.Title = title;
             msgDialog.Image = MessageBoxImage.None;
             msgDialog.Buttons = MessageBoxButton.OKCancel;
 
-            return msgDialog.ShowDialog();
+            return msgDialog.ShowDialog ();
+        }
+        /// <summary>
+        /// Displays the Cairo Message Dialog with the default Ok button and Icon and get a user's input.
+        /// </summary>
+        /// <param name="message">The message to display.</param>
+        /// <param name="title">The title of the dialog.</param>
+        /// <returns>Nullable bool indicating user response.</returns>
+        public static string ShowTextField (string message, string title)
+        {
+            CairoMessage msgDialog = new CairoMessage ();
+            msgDialog.Message = message;
+            msgDialog.Title = title;
+            msgDialog.MessageIconImage.Source = new BitmapImage (new System.Uri ("Resources/cairoIcon.png", System.UriKind.RelativeOrAbsolute));
+            msgDialog.Buttons = MessageBoxButton.OK;
+            msgDialog.userTextField.Visibility = Visibility.Visible;
+
+            bool? result = msgDialog.ShowDialog ();
+            if (result == null)
+                return null;
+            else
+                return msgDialog.userTextField.Text;
         }
 
         /// <summary>

@@ -78,6 +78,7 @@
                         <Menu.ContextMenu>
                             <ContextMenu Style="{StaticResource CairoContextMenuStyle}">
                                 <MenuItem Header="Open in new window" Click="Open_Click" CommandParameter="{Binding Path=FullName}" Style="{StaticResource CairoMenuItemStyle}" />
+                                <MenuItem Header="Rename" Click="Rename_Click" CommandParameter="{Binding}" Style="{StaticResource CairoMenuItemStyle}" />
                                 <Separator Style="{StaticResource CairoMenuSeparatorStyle}" />
                                 <MenuItem Header="Remove" Click="Remove_Click" CommandParameter="{Binding}" Style="{StaticResource CairoMenuItemStyle}" />
                             </ContextMenu>
