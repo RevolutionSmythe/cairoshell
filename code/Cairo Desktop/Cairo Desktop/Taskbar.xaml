@@ -14,7 +14,7 @@
     SizeToContent="Width"
     Focusable="False"
     Background="{x:Null}"
-    Topmost="True">
+    Topmost="True" Loaded="Window_Loaded">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>

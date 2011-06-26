@@ -8,7 +8,7 @@ using System.Linq;
 using System.Diagnostics;
 //using System.Windows.Navigation;
 using System.Windows.Markup;
-
+using System.Windows.Interop;
 namespace CairoDesktop
 {
     /// <summary>
@@ -58,6 +58,10 @@ namespace CairoDesktop
                 this.CairoTaskbarTaskList.IsOpen = false;
                 this.CairoTaskbarTaskList.StaysOpen = false;
             }
+        }
+
+        private void Window_Loaded (object sender, RoutedEventArgs e)
+        {
         }
     }
 }

@@ -230,9 +230,6 @@ namespace CairoDesktop
             {
                 SysTray.InitializeSystemTray();
             }
-            else
-            {
-            }
         }
 
         private void OnWindowClosing(object sender, CancelEventArgs e)

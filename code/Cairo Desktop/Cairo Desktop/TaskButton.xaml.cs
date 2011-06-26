@@ -49,14 +49,15 @@ namespace CairoDesktop
             if (windowObject != null)
             {
                 if (windowObject.State == CairoDesktop.WindowsTasks.ApplicationWindow.WindowState.Active)
-                    {
-                        windowObject.Minimize();
-                        windowObject.State = CairoDesktop.WindowsTasks.ApplicationWindow.WindowState.Inactive;
-                    }
-                    else
-                    {
-                        windowObject.BringToFront();
-                    }
+                {
+                    windowObject.Minimize ();
+                    windowObject.State = CairoDesktop.WindowsTasks.ApplicationWindow.WindowState.Inactive;
+                }
+                else
+                {
+                    windowObject.BringToFront ();
+                    windowObject.State = CairoDesktop.WindowsTasks.ApplicationWindow.WindowState.Active;
+                }
             }
         }
 

@@ -17,32 +17,32 @@ namespace CairoDesktop.WindowsTasks
         private NativeWindowEx _HookWin;
         private object _windowsLock = new object();
 
-        private static int WM_SHELLHOOKMESSAGE = -1;
-        private const int WH_SHELL = 10;
+        public static int WM_SHELLHOOKMESSAGE = -1;
+        public const int WH_SHELL = 10;
 
-        private const int HSHELL_WINDOWCREATED = 1;
-        private const int HSHELL_WINDOWDESTROYED = 2;
-        private const int HSHELL_ACTIVATESHELLWINDOW = 3;
+        public const int HSHELL_WINDOWCREATED = 1;
+        public const int HSHELL_WINDOWDESTROYED = 2;
+        public const int HSHELL_ACTIVATESHELLWINDOW = 3;
 
         //Windows NT
-        private const int HSHELL_WINDOWACTIVATED = 4;
-        private const int HSHELL_GETMINRECT = 5;
-        private const int HSHELL_REDRAW = 6;
-        private const int HSHELL_TASKMAN = 7;
-        private const int HSHELL_LANGUAGE = 8;
-        private const int HSHELL_SYSMENU = 9;
-        private const int HSHELL_ENDTASK = 10;
+        public const int HSHELL_WINDOWACTIVATED = 4;
+        public const int HSHELL_GETMINRECT = 5;
+        public const int HSHELL_REDRAW = 6;
+        public const int HSHELL_TASKMAN = 7;
+        public const int HSHELL_LANGUAGE = 8;
+        public const int HSHELL_SYSMENU = 9;
+        public const int HSHELL_ENDTASK = 10;
         //Windows 2000
-        private const int HSHELL_ACCESSIBILITYSTATE = 11;
-        private const int HSHELL_APPCOMMAND = 12;
+        public const int HSHELL_ACCESSIBILITYSTATE = 11;
+        public const int HSHELL_APPCOMMAND = 12;
 
         //Windows XP
-        private const int HSHELL_WINDOWREPLACED = 13;
-        private const int HSHELL_WINDOWREPLACING = 14;
+        public const int HSHELL_WINDOWREPLACED = 13;
+        public const int HSHELL_WINDOWREPLACING = 14;
 
-        private const int HSHELL_HIGHBIT = 0x8000;
-        private const int HSHELL_FLASH = (HSHELL_REDRAW | HSHELL_HIGHBIT);
-        private const int HSHELL_RUDEAPPACTIVATED = (HSHELL_WINDOWACTIVATED | HSHELL_HIGHBIT);
+        public const int HSHELL_HIGHBIT = 0x8000;
+        public const int HSHELL_FLASH = (HSHELL_REDRAW | HSHELL_HIGHBIT);
+        public const int HSHELL_RUDEAPPACTIVATED = (HSHELL_WINDOWACTIVATED | HSHELL_HIGHBIT);
 
         public WindowsTasksService()
         {
@@ -143,13 +143,14 @@ namespace CairoDesktop.WindowsTasks
                                 Trace.WriteLine("Replaced: " + msg.LParam.ToString());
                                 if (this.Windows.Contains(win))
                                 {
-                                    win = this.Windows.First(wnd => wnd.Handle == msg.LParam);
+                                    GetRealWindow (msg, ref win);
                                     win.State = ApplicationWindow.WindowState.Inactive;
                                 }
                                 else
                                 {
                                     win.State = ApplicationWindow.WindowState.Inactive;
-                                    Windows.Add(win);
+                                    if (win.Title != "")
+                                        Windows.Add (win);
                                 }
                                 break;
 
@@ -157,25 +158,27 @@ namespace CairoDesktop.WindowsTasks
                             case HSHELL_RUDEAPPACTIVATED:
                                 Trace.WriteLine("Activated: " + msg.LParam.ToString());
 
-                                foreach (var aWin in this.Windows.Where(w => w.State == ApplicationWindow.WindowState.Active))
-                                {
-                                    aWin.State = ApplicationWindow.WindowState.Inactive;
-                                }
-
                                 if (msg.LParam == IntPtr.Zero)
                                 {
                                     break;
                                 }
 
+                                foreach (var aWin in this.Windows)
+                                {
+                                    if(aWin.State == ApplicationWindow.WindowState.Active)
+                                        aWin.State = ApplicationWindow.WindowState.Inactive;
+                                }
+
                                 if (this.Windows.Contains(win))
                                 {
-                                    win = this.Windows.First(wnd => wnd.Handle == msg.LParam);
+                                    GetRealWindow (msg, ref win);
                                     win.State = ApplicationWindow.WindowState.Active;
                                 }
                                 else
                                 {
                                     win.State = ApplicationWindow.WindowState.Active;
-                                    Windows.Add(win);
+                                    if (win.Title != "")
+                                        Windows.Add (win);
                                 }
                                 break;
 
@@ -183,13 +186,14 @@ namespace CairoDesktop.WindowsTasks
                                 Trace.WriteLine("Flashing window: " + msg.LParam.ToString());
                                 if (this.Windows.Contains(win))
                                 {
-                                    win = this.Windows.First(wnd => wnd.Handle == msg.LParam);
+                                    GetRealWindow (msg, ref win);
                                     win.State = ApplicationWindow.WindowState.Flashing;
                                 }
                                 else
                                 {
                                     win.State = ApplicationWindow.WindowState.Flashing;
-                                    Windows.Add(win);
+                                    if (win.Title != "")
+                                        Windows.Add (win);
                                 }
                                 break;
 
@@ -236,6 +240,11 @@ namespace CairoDesktop.WindowsTasks
             }
         }
 
+        private void GetRealWindow (System.Windows.Forms.Message msg, ref ApplicationWindow win)
+        {
+            win = this.Windows.First (wnd => wnd.Handle == msg.LParam);
+        }
+
         private void OnRedraw(IntPtr windowHandle)
         {
             if (this.Redraw != null)
@@ -245,28 +254,28 @@ namespace CairoDesktop.WindowsTasks
         }
 
         [DllImport("user32.dll")]
-        private static extern bool RegisterShellHookWindow(IntPtr hWnd);
+        public static extern bool RegisterShellHookWindow (IntPtr hWnd);
 
         [DllImport("user32.dll")]
-        private static extern int RegisterWindowMessage(string message);
+        public static extern int RegisterWindowMessage (string message);
 
         [DllImport("user32.dll")]
-        private static extern bool SetTaskmanWindow(IntPtr hWnd);
+        public static extern bool SetTaskmanWindow(IntPtr hWnd);
 
         [DllImport("user32.dll")]
-        private static extern IntPtr SendMessage(IntPtr hwnd, int message, IntPtr wparam, IntPtr lparam);
+        public static extern IntPtr SendMessage (IntPtr hwnd, int message, IntPtr wparam, IntPtr lparam);
 
         [DllImport("user32.dll")]
-        private static extern bool DeregisterShellHookWindow(IntPtr hWnd);
+        public static extern bool DeregisterShellHookWindow (IntPtr hWnd);
 
         [DllImport("Shell32.dll")]
-        private static extern bool RegisterShellHook(IntPtr hWnd, uint flags);
+        public static extern bool RegisterShellHook (IntPtr hWnd, uint flags);
 
         [DllImport("user32.dll")]
-        private static extern IntPtr GetDesktopWindow();
+        public static extern IntPtr GetDesktopWindow ();
 
         [DllImport("user32.dll")]
-        private static extern bool SystemParametersInfo(SPI uiAction, uint uiParam, IntPtr pvParam, SPIF fWinIni);
+        public static extern bool SystemParametersInfo (SPI uiAction, uint uiParam, IntPtr pvParam, SPIF fWinIni);
 
         public ObservableCollection<ApplicationWindow> Windows
         {

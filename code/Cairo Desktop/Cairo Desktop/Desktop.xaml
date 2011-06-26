@@ -6,11 +6,11 @@
     Width="{DynamicResource {x:Static SystemParameters.MaximizedPrimaryScreenWidthKey}}"
     ResizeMode="NoResize"
     ShowInTaskbar="False"
-    Top="35"
+    Top="0"
     Left="0"
     AllowsTransparency="True"
     Focusable="False"
-    Background="{x:Null}" Topmost="False" Activated="Window_Activated">
+    Background="Aqua" Topmost="False" Activated="Window_Activated">
     <Window.Resources>
         <Style x:Key="CairoDesktopNavItemStyle"
             TargetType="{x:Type Button}">
