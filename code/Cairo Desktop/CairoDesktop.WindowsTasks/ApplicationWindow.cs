@@ -14,11 +14,13 @@ namespace CairoDesktop.WindowsTasks
     {
         private bool _isActive;
         private WINDOWPLACEMENT _lastWindowPlacement;
+        private WindowsTasksService _service;
 
         public ApplicationWindow(IntPtr handle, WindowsTasksService sourceService)
         {
             this.Handle = handle;
             this.State = WindowState.Active;
+            _service = sourceService;
             if (sourceService != null)
             {
                 sourceService.Redraw += HandleRedraw;
@@ -39,7 +41,7 @@ namespace CairoDesktop.WindowsTasks
         {
             get
             {
-                throw new NotImplementedException();
+                return _service;
             }
             set
             {
@@ -51,6 +53,8 @@ namespace CairoDesktop.WindowsTasks
         {
             get
             {
+                if (this.Handle == IntPtr.Zero)
+                    return "Desktop";
                 int len = GetWindowTextLength(this.Handle);
                 StringBuilder sb = new StringBuilder(len);
                 GetWindowText(this.Handle, sb, len + 1);
@@ -71,6 +75,8 @@ namespace CairoDesktop.WindowsTasks
         {
             get
             {
+                if (this.Handle == IntPtr.Zero)
+                    return null;
                 uint iconHandle = GetIconForWindow();
 
                 Icon ico = null;
@@ -117,6 +123,8 @@ namespace CairoDesktop.WindowsTasks
         {
             get
             {
+                if (this.Handle == IntPtr.Zero)
+                    return true;//Desktop icon
                 if ((this.State != WindowState.Hidden) && (GetParent(this.Handle) != IntPtr.Zero))
                 {
                     return false;
@@ -163,23 +171,41 @@ namespace CairoDesktop.WindowsTasks
 
         public void BringToFront()
         {
-            if (_lastWindowPlacement.length != 0)
+            if (Handle != IntPtr.Zero)
             {
-                ShowWindow (this.Handle, (WindowShowStyle)_lastWindowPlacement.showCmd);
-                _lastWindowPlacement.length = 0;
+                if (_lastWindowPlacement.length != 0)
+                {
+                    ShowWindow (this.Handle, (WindowShowStyle)_lastWindowPlacement.showCmd);
+                    _lastWindowPlacement.length = 0;
+                }
+                else
+                {
+                    WINDOWPLACEMENT placement;
+                    GetWindowPlacement (this.Handle, out placement);
+                    if (placement.showCmd == (int)WindowShowStyle.ShowMinimized)
+                        ShowWindow (this.Handle, WindowShowStyle.Restore);
+                }
+                SetForegroundWindow (this.Handle);
             }
-            else
+            else if(_service != null)
             {
-                WINDOWPLACEMENT placement;
-                GetWindowPlacement (this.Handle, out placement);
-                if (placement.showCmd == (int)WindowShowStyle.ShowMinimized)
-                    ShowWindow (this.Handle, WindowShowStyle.Restore);
+                //Desktop app
+                State = WindowState.Inactive;//Force inactive so that we always can get to the desktop
+                foreach (ApplicationWindow w in _service.Windows)
+                {
+                    if (w.Handle != IntPtr.Zero)
+                    {
+                        w.Minimize ();//Minimize all others (except for us)
+                        w.State = WindowState.Inactive;//Fix the inactive state as well so that users don't click to minimize it again the first time
+                    }
+                }
             }
-            SetForegroundWindow(this.Handle);
         }
 
         public void Minimize()
         {
+            if (this.Handle == IntPtr.Zero)
+                return;//Desktop, can't minimize
             _lastWindowPlacement = new WINDOWPLACEMENT ();
             _lastWindowPlacement.length = Marshal.SizeOf (_lastWindowPlacement);
             GetWindowPlacement (this.Handle, out _lastWindowPlacement);
@@ -193,7 +219,7 @@ namespace CairoDesktop.WindowsTasks
         /// <param name="handle">The handle of the window.</param>
         private void HandleRedraw(IntPtr handle)
         {
-            if (!this.Handle.Equals(handle))
+            if (!this.Handle.Equals(handle) || this.Handle == IntPtr.Zero)
             {
                 return;
             }

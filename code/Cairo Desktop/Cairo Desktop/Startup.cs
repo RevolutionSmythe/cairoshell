@@ -20,6 +20,7 @@
         public static MenuBarShadow MenuBarShadowWindow { get; set; }
         public static Taskbar TaskbarWindow { get; set; }
         public static Desktop DesktopWindow { get; set; }
+        public static Sound.SoundAPI Sound { get; set; }
 
 
         /// <summary>
@@ -117,6 +118,9 @@
             //SetTaskmanWindow(hookWin.Handle)
             CairoDesktop.WindowsTasks.WindowsTasksService.RegisterShellHookWindow (_HookWin.Handle);
 
+            Sound = new CairoDesktop.Sound.SoundAPI ();
+            Sound.Initialize (_HookWin.Handle);
+
             //'Assume no error occurred
             WM_SHELLHOOKMESSAGE = CairoDesktop.WindowsTasks.WindowsTasksService.RegisterWindowMessage ("SHELLHOOK");
             _HookWin.MessageReceived += ShellWinProc;
@@ -130,7 +134,12 @@
         public static int WM_SHELLHOOKMESSAGE = -1;
         public static void ShellWinProc (System.Windows.Forms.Message msg)
         {
-            if (msg.Msg == CairoDesktop.WindowsTasks.WindowsTasksService.WM_SHELLHOOKMESSAGE)
+            const int WM_HOTKEY = 0x0312;
+            if (msg.Msg == WM_HOTKEY)
+            {
+                Sound.HandleKeypress ((int)msg.WParam);
+            }
+            else if (msg.Msg == CairoDesktop.WindowsTasks.WindowsTasksService.WM_SHELLHOOKMESSAGE)
             {
                 if (msg.LParam == IntPtr.Zero)
                     return;
