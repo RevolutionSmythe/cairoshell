@@ -85,13 +85,14 @@ namespace CairoDesktop.WindowsTasks
 
         public void GetOpenWindows ()
         {
+            //Run through all the processes and see whether we can find anything that we need to add already
             Process[] procs = Process.GetProcesses ();
             foreach (Process proc in procs)
             {
-                if (proc.MainWindowHandle != IntPtr.Zero)
+                if (proc.MainWindowHandle != IntPtr.Zero)//If the main window isn't null, its a GUI window
                 {
                     var win = new ApplicationWindow (proc.MainWindowHandle, this);
-                    if(win.Title != "")
+                    if(win.Title != "")//Make sure that it isn't supposed to be hidden
                         Windows.Add (win);
                 }
             }

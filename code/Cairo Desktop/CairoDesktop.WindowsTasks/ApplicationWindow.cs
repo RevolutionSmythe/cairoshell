@@ -186,6 +186,8 @@ namespace CairoDesktop.WindowsTasks
                         ShowWindow (this.Handle, WindowShowStyle.Restore);
                 }
                 SetForegroundWindow (this.Handle);
+                //Fix the state
+                State = CairoDesktop.WindowsTasks.ApplicationWindow.WindowState.Active;
             }
             else if(_service != null)
             {
@@ -210,7 +212,9 @@ namespace CairoDesktop.WindowsTasks
             _lastWindowPlacement.length = Marshal.SizeOf (_lastWindowPlacement);
             GetWindowPlacement (this.Handle, out _lastWindowPlacement);
             //...In your code some where: show a form, without making it active
-            ShowWindow(this.Handle, WindowShowStyle.Minimize);
+            ShowWindow (this.Handle, WindowShowStyle.Minimize);
+            //Fix the state
+            State = CairoDesktop.WindowsTasks.ApplicationWindow.WindowState.Inactive;
         }
 
         /// <summary>

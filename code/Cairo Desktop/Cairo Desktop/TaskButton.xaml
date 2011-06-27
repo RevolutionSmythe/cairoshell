@@ -29,8 +29,10 @@
                 <ContextMenu Style="{StaticResource CairoContextMenuStyle}">
                     <MenuItem Header="Minimize" Style="{StaticResource CairoMenuItemStyle}" Click="Min_Click" Name="MinItem" />
                     <MenuItem Header="Restore" Style="{StaticResource CairoMenuItemStyle}" Click="Max_Click" Name="MaxItem" />
-                    <MenuItem Header="Add To Task Bar" Style="{StaticResource CairoMenuItemStyle}" Click="Add_To_Task_Click" Name="AddToTaskItem" />
+                    <MenuItem Header="Add To Menu" Style="{StaticResource CairoMenuItemStyle}" Click="Add_To_Menu_Click" Name="AddToTaskItem" />
+                    <MenuItem Header="Hide" Style="{StaticResource CairoMenuItemStyle}" Click="Hide_Click" Name="Hide" />
                     <Separator Style="{StaticResource CairoMenuSeparatorStyle}" />
+                    <MenuItem Header="Force Quit" Style="{StaticResource CairoMenuItemStyle}" Click="Force_Close_Click" />
                     <MenuItem Header="Close" Style="{StaticResource CairoMenuItemStyle}" Click="Close_Click" />
                 </ContextMenu>
             </Button.ContextMenu>

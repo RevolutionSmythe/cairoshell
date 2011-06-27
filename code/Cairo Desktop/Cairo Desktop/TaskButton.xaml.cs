@@ -49,15 +49,9 @@ namespace CairoDesktop
             if (windowObject != null)
             {
                 if (windowObject.State == CairoDesktop.WindowsTasks.ApplicationWindow.WindowState.Active)
-                {
                     windowObject.Minimize ();
-                    windowObject.State = CairoDesktop.WindowsTasks.ApplicationWindow.WindowState.Inactive;
-                }
                 else
-                {
                     windowObject.BringToFront ();
-                    windowObject.State = CairoDesktop.WindowsTasks.ApplicationWindow.WindowState.Active;
-                }
             }
         }
 
@@ -67,7 +61,6 @@ namespace CairoDesktop
             if (windowObject != null)
             {
                 windowObject.Minimize();
-                windowObject.State = CairoDesktop.WindowsTasks.ApplicationWindow.WindowState.Inactive;
             }
         }
 
@@ -75,23 +68,46 @@ namespace CairoDesktop
         {
             var windowObject = this.DataContext as CairoDesktop.WindowsTasks.ApplicationWindow;
             if (windowObject != null)
-            {
                 windowObject.BringToFront();
-            }
         }
 
-        private void Close_Click(object sender, RoutedEventArgs e)
+        private void Close_Click (object sender, RoutedEventArgs e)
         {
             var windowObject = this.DataContext as CairoDesktop.WindowsTasks.ApplicationWindow;
             if (windowObject != null)
             {
-                int handle = FindWindow(null, WinTitle.Text);
+                int handle = FindWindow (null, WinTitle.Text);
 
-                SendMessage(handle, WM_COMMAND, WM_CLOSE, 0);
+                SendMessage (handle, WM_COMMAND, WM_CLOSE, 0);
             }
         }
 
-        private void Add_To_Task_Click (object sender, RoutedEventArgs e)
+        private void Force_Close_Click (object sender, RoutedEventArgs e)
+        {
+            var windowObject = this.DataContext as CairoDesktop.WindowsTasks.ApplicationWindow;
+            if (windowObject != null)
+            {
+                System.Diagnostics.Process[] ps = System.Diagnostics.Process.GetProcesses ();
+                foreach (System.Diagnostics.Process p in ps)
+                {
+                    if (p.MainWindowHandle == windowObject.Handle)
+                        p.Kill ();//Kill it
+                }
+            }
+        }
+
+        private void Hide_Click (object sender, RoutedEventArgs e)
+        {
+            var windowObject = this.DataContext as CairoDesktop.WindowsTasks.ApplicationWindow;
+            if (windowObject != null && windowObject.Handle != IntPtr.Zero && 
+                windowObject.TasksService != null)
+            {
+                //Remove us from the windows
+                windowObject.TasksService.Windows.Remove (windowObject);
+            }
+        }
+
+        private void Add_To_Menu_Click (object sender, RoutedEventArgs e)
         {
             var windowObject = this.DataContext as CairoDesktop.WindowsTasks.ApplicationWindow;
             if (windowObject != null)
