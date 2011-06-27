@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
@@ -74,10 +75,25 @@ namespace CairoDesktop.WindowsTasks
 
                 var win = new ApplicationWindow (IntPtr.Zero, this);
                 Windows.Add (win);//Add the goto desktop panel
+                GetOpenWindows ();
             }
             catch (Exception ex)
             {
                 Debug.Print(ex.Message);
+            }
+        }
+
+        public void GetOpenWindows ()
+        {
+            Process[] procs = Process.GetProcesses ();
+            foreach (Process proc in procs)
+            {
+                if (proc.MainWindowHandle != IntPtr.Zero)
+                {
+                    var win = new ApplicationWindow (proc.MainWindowHandle, this);
+                    if(win.Title != "")
+                        Windows.Add (win);
+                }
             }
         }
 
