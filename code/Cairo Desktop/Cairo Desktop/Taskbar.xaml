@@ -61,7 +61,7 @@
                                 <Trigger Property="IsGrouping"
                                     Value="true">
                                     <Setter Property="ScrollViewer.CanContentScroll"
-                                        Value="false" />
+                                        Value="true" />
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
@@ -98,6 +98,13 @@
                 </LinearGradientBrush>
             </Border.BorderBrush>
             <StackPanel Orientation="Horizontal">
+                <Button Margin="0,2,0,0" Height="26" Style="{StaticResource CairoTaskbarButtonList}" Click="Desktop_Click">
+                    <Image Source="Resources\switchToDesktop.png"
+                           Width="15"
+                           Height="12"
+                           Opacity="0.3"
+                           Margin="0,0,0,0"></Image>
+                </Button>
                 <StackPanel Orientation="Horizontal">
                 <ListView HorizontalAlignment="Stretch"
                     Name="quickLaunchList"
@@ -159,14 +166,14 @@
                 </LinearGradientBrush>
             </Border.BorderBrush>
             <StackPanel Orientation="Horizontal">
-            <Button Margin="2,0,1,0" Height="26" Style="{StaticResource CairoTaskbarButtonList}" Click="Button_Click">
-                <Image Source="Resources\taskListIcon.png"
+                <Button Margin="2,0,1,0" Height="26" Style="{StaticResource CairoTaskbarButtonList}" Click="Button_Click">
+                    <Image Source="Resources\taskListIcon.png"
                            Width="15"
                            Height="12"
                            Opacity="0.3"
                            Margin="0,0,0,0"></Image>
-            </Button>
-            <Popup Placement="MousePoint" Name="CairoTaskbarTaskList" AllowsTransparency="True" PopupAnimation="Fade">
+                </Button>
+                <Popup Placement="MousePoint" Name="CairoTaskbarTaskList" AllowsTransparency="True" PopupAnimation="Fade">
                 <Border Style="{StaticResource CairoTaskListPopupStyle}">
                     <ListView HorizontalAlignment="Stretch"
                     DataContext="{StaticResource tasksSvc}"

@@ -73,8 +73,9 @@ namespace CairoDesktop.WindowsTasks
                 SendMessage(new IntPtr(0xffff), msg, IntPtr.Zero, IntPtr.Zero);
                 SendMessage (GetDesktopWindow (), 0x0400, IntPtr.Zero, IntPtr.Zero);
 
-                var win = new ApplicationWindow (IntPtr.Zero, this);
-                Windows.Add (win);//Add the goto desktop panel
+                //var win = new ApplicationWindow (IntPtr.Zero, this);
+                //Windows.Add (win);//Add the goto desktop item
+                //Note: superseeded by the desktop button (left side)
                 GetOpenWindows ();
             }
             catch (Exception ex)

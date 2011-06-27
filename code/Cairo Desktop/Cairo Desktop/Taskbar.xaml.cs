@@ -60,6 +60,17 @@ namespace CairoDesktop
             }
         }
 
+        private void Desktop_Click (object sender, RoutedEventArgs e)
+        {
+            foreach (WindowsTasks.ApplicationWindow w in (TasksList.DataContext as WindowsTasks.WindowsTasksService).Windows)
+            {
+                if (w.Handle != IntPtr.Zero)
+                {
+                    w.Minimize ();//Minimize all others (except for us)
+                }
+            }
+        }
+
         private void Window_Loaded (object sender, RoutedEventArgs e)
         {
         }

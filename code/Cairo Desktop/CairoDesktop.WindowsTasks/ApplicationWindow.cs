@@ -198,7 +198,6 @@ namespace CairoDesktop.WindowsTasks
                     if (w.Handle != IntPtr.Zero)
                     {
                         w.Minimize ();//Minimize all others (except for us)
-                        w.State = WindowState.Inactive;//Fix the inactive state as well so that users don't click to minimize it again the first time
                     }
                 }
             }
