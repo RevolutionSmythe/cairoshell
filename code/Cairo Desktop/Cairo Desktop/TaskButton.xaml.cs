@@ -45,19 +45,26 @@ namespace CairoDesktop
 
         private void btnClick(object sender, RoutedEventArgs e)
         {
-            var windowObject = this.DataContext as CairoDesktop.WindowsTasks.ApplicationWindow;
+        }
+
+        private void btn_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            var windowObject = this.DataContext as CairoDesktop.ApplicationWindow;
             if (windowObject != null)
             {
-                if (windowObject.State == CairoDesktop.WindowsTasks.ApplicationWindow.WindowState.Active)
-                    windowObject.Minimize ();
+                MessageBox.Show(windowObject.State.ToString());
+                if (windowObject.State != CairoDesktop.ApplicationWindow.WindowState.Inactive)
+                    windowObject.Minimize();
                 else
-                    windowObject.BringToFront ();
+                {
+                    windowObject.BringToFront();
+                }
             }
         }
 
         private void Min_Click(object sender, RoutedEventArgs e)
         {
-            var windowObject = this.DataContext as CairoDesktop.WindowsTasks.ApplicationWindow;
+            var windowObject = this.DataContext as CairoDesktop.ApplicationWindow;
             if (windowObject != null)
             {
                 windowObject.Minimize();
@@ -66,14 +73,14 @@ namespace CairoDesktop
 
         private void Max_Click(object sender, RoutedEventArgs e)
         {
-            var windowObject = this.DataContext as CairoDesktop.WindowsTasks.ApplicationWindow;
+            var windowObject = this.DataContext as CairoDesktop.ApplicationWindow;
             if (windowObject != null)
                 windowObject.BringToFront();
         }
 
         private void Close_Click (object sender, RoutedEventArgs e)
         {
-            var windowObject = this.DataContext as CairoDesktop.WindowsTasks.ApplicationWindow;
+            var windowObject = this.DataContext as CairoDesktop.ApplicationWindow;
             if (windowObject != null)
             {
                 int handle = FindWindow (null, WinTitle.Text);
@@ -84,7 +91,7 @@ namespace CairoDesktop
 
         private void Force_Close_Click (object sender, RoutedEventArgs e)
         {
-            var windowObject = this.DataContext as CairoDesktop.WindowsTasks.ApplicationWindow;
+            var windowObject = this.DataContext as CairoDesktop.ApplicationWindow;
             if (windowObject != null)
             {
                 System.Diagnostics.Process[] ps = System.Diagnostics.Process.GetProcesses ();
@@ -98,7 +105,7 @@ namespace CairoDesktop
 
         private void Hide_Click (object sender, RoutedEventArgs e)
         {
-            var windowObject = this.DataContext as CairoDesktop.WindowsTasks.ApplicationWindow;
+            var windowObject = this.DataContext as CairoDesktop.ApplicationWindow;
             if (windowObject != null && windowObject.Handle != IntPtr.Zero && 
                 windowObject.TasksService != null)
             {
@@ -109,7 +116,7 @@ namespace CairoDesktop
 
         private void Add_To_Menu_Click (object sender, RoutedEventArgs e)
         {
-            var windowObject = this.DataContext as CairoDesktop.WindowsTasks.ApplicationWindow;
+            var windowObject = this.DataContext as CairoDesktop.ApplicationWindow;
             if (windowObject != null)
             {
                 System.Diagnostics.Process process = Cairo.WindowsHooksWrapper.NativeMethods.GetProcess (windowObject.Handle);

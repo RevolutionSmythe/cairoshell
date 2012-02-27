@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.ComponentModel;
 
-namespace CairoDesktop.WindowsTasks
+namespace CairoDesktop
 {
     [Serializable]
     public sealed class NotifyPropertyChangedAspect : PostSharp.Laos.OnMethodBoundaryAspect

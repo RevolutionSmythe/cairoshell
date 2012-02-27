@@ -33,9 +33,13 @@ namespace CairoDesktop.Sound
             switch (param)
             {
                 case VolumeDown:
+                    if ((volume - 1) / 100 < 0)
+                        volume = 1;
                     m_device.AudioEndpointVolume.MasterVolumeLevelScalar = (volume - 1) / 100;
                     break;
                 case VolumeUp:
+                    if ((volume + 1) / 100 > 100)
+                        volume = 99;
                     m_device.AudioEndpointVolume.MasterVolumeLevelScalar = (volume + 1) / 100;
                     break;
                 case VolumeMute:

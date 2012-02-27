@@ -36,6 +36,7 @@
     <UpgradeBackupLocation>
     </UpgradeBackupLocation>
     <OldToolsVersion>3.5</OldToolsVersion>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>false</DebugSymbols>
@@ -59,9 +60,26 @@
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="WindowsTasks\ApplicationWindow.cs" />
+    <Compile Include="WindowsTasks\ICairoNotifyPropertyChanged.cs" />
+    <Compile Include="WindowsTasks\NativeWindowEx.cs" />
+    <Compile Include="WindowsTasks\NotifyPropertyChangedAspect.cs" />
+    <Compile Include="WindowsTasks\WindowsTasksService.cs" />
     <Reference Include="CoreAudioApi, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>.\CoreAudioApi.dll</HintPath>
+    </Reference>
+    <Reference Include="PostSharp.Core, Version=1.0.11.424, Culture=neutral, PublicKeyToken=b13fd38b8f9c99d7, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\Dependencies\PostSharp\PostSharp.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="PostSharp.Laos, Version=1.0.11.424, Culture=neutral, PublicKeyToken=b13fd38b8f9c99d7, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\Dependencies\PostSharp\PostSharp.Laos.dll</HintPath>
+    </Reference>
+    <Reference Include="PostSharp.Public, Version=1.0.11.424, Culture=neutral, PublicKeyToken=b13fd38b8f9c99d7, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\Dependencies\PostSharp\PostSharp.Public.dll</HintPath>
     </Reference>
     <Reference Include="PresentationFramework.Aero">
       <RequiredTargetFramework>3.0</RequiredTargetFramework>
@@ -119,6 +137,12 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Compile Include="Settings.cs" />
+    <Compile Include="Properties\Settings.Designer.cs">
+      <DependentUpon>Settings.settings</DependentUpon>
+      <AutoGen>True</AutoGen>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+    </Compile>
     <Compile Include="Sound\SoundAPI.cs" />
     <Compile Include="SupportingClasses\KeyboardRegistration.cs" />
     <Compile Include="SystemTray.xaml.cs">
@@ -156,6 +180,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
     <None Include="White.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -252,12 +280,6 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <Compile Include="Properties\Settings.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Settings.settings</DependentUpon>
-      <DesignTimeSharedInput>True</DesignTimeSharedInput>
-    </Compile>
-    <Compile Include="Settings.cs" />
     <Compile Include="AppBar Helper\SHAppBarMessageHelper.cs" />
     <Compile Include="Startup.cs" />
     <Compile Include="SupportingClasses\SystemFile.cs" />
@@ -277,10 +299,6 @@
       <SubType>Designer</SubType>
     </EmbeddedResource>
     <None Include="app.config" />
-    <None Include="Properties\Settings.settings">
-      <Generator>SettingsSingleFileGenerator</Generator>
-      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
-    </None>
     <None Include="SearchAPI.tlb" />
     <AppDesigner Include="Properties\" />
   </ItemGroup>
@@ -400,10 +418,6 @@
     <ProjectReference Include="..\CairoDesktop.Interop\CairoDesktop.Interop.csproj">
       <Project>{233781C8-83E4-47A6-847E-FA7A31B1CC51}</Project>
       <Name>CairoDesktop.Interop</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\CairoDesktop.WindowsTasks\CairoDesktop.WindowsTasks.csproj">
-      <Project>{5FABAD0F-D28C-4EE6-A826-77968087864E}</Project>
-      <Name>CairoDesktop.WindowsTasks</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup />

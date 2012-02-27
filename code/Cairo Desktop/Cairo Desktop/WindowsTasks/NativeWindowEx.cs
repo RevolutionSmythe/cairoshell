@@ -7,7 +7,7 @@ using System.Text;
 using System.Windows.Forms;
 using System.Drawing;
 
-namespace CairoDesktop.WindowsTasks
+namespace CairoDesktop
 {
     public class NativeWindowEx : System.Windows.Forms.NativeWindow
     {

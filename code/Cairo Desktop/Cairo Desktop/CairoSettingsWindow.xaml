@@ -251,6 +251,13 @@
                         Grid.Row="1"
                         Margin="32,34,0,0"
                         Grid.RowSpan="2" />
+                    <CheckBox Content="Enable Application Name in the Taskbar" 
+                              Grid.RowSpan="2"
+                              IsChecked="{Binding Path=Default.ShowAppNameOnTaskbar}"
+                              Margin="14,0,14,51"
+                              Grid.Row="2"
+                              Click="ShowAppNameOnTaskbar_Click" />
+                    <TextBlock FontSize="12" FontStyle="Italic" Foreground="DarkGray" Grid.RowSpan="2" Margin="32,27,177,7" Text="Enabling this will add the application name next to the icon in the Taskbar" Grid.Row="2" Grid.ColumnSpan="2" Width="389" />
                 </Grid>
             </TabItem>
             <TabItem Style="{StaticResource CairoSettingsBarItemStyle}">

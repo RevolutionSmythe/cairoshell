@@ -18,7 +18,7 @@
         <Button x:Name="btn"
             BorderThickness="0"
             VerticalAlignment="Stretch"
-            Click="btnClick">
+            Click="btnClick" MouseDoubleClick="btn_MouseDoubleClick">
             <Button.Style>
                 <MultiBinding Converter="{StaticResource styleConverter}">
                     <Binding RelativeSource="{RelativeSource Self}" />

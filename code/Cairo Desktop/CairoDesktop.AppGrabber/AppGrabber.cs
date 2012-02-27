@@ -176,7 +176,7 @@ namespace CairoDesktop.AppGrabber
                         //ai.Icon = ai.GetAssociatedIcon();
                         rval.Add(ai);
                     }
-                    catch (Exception ex)
+                    catch (Exception)
                     {
                         //Output the reason to the debugger
                         //_logger.Debug("Error creating ApplicationInfo object in appgrabber. Details: {0}\n{1}", ex.Message, ex.StackTrace);

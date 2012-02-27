@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using System.Windows.Data;
 using System.Windows;
-using CairoDesktop.WindowsTasks;
 
 namespace CairoDesktop
 {
@@ -40,7 +39,8 @@ namespace CairoDesktop
                     break;
 
                 case ApplicationWindow.WindowState.Hidden:
-                    fxStyle = fxElement.FindResource("CairoTaskbarButtonHiddenStyle");
+                    fxStyle = fxElement.FindResource("CairoTaskbarButtonActiveStyle");
+                    //fxStyle = fxElement.FindResource("CairoTaskbarButtonHiddenStyle");
                     break;
             }
 

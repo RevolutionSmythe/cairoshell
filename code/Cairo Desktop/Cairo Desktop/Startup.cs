@@ -81,7 +81,7 @@
             FirstRun(app);
 #endif
 
-            if (Properties.Settings.Default.EnableDesktop)
+            /*if (Properties.Settings.Default.EnableDesktop)
             {
                 //DesktopWindow = new Desktop() { Owner = _parentWindow };
                 DesktopWindow = new Desktop() {};
@@ -89,7 +89,7 @@
                 WindowInteropHelper f = new WindowInteropHelper(DesktopWindow);
                 int result = NativeMethods.SetShellWindow(f.Handle);
                 DesktopWindow.ShowWindowBottomMost(f.Handle);
-            }
+            }*/
 
             if (Properties.Settings.Default.EnableMenuBarShadow)
             {
@@ -111,18 +111,18 @@
             MenuBarPtr = menuBarHelper.Handle;
             CairoDesktop.SupportingClasses.NativeMethods.SetWindowPos (menuBarHelper.Handle, (IntPtr)CairoDesktop.SupportingClasses.NativeMethods.HWND_TOPMOST, 0, 0, 0, 0, TOPMOST_FLAGS);
 
-            CairoDesktop.WindowsTasks.NativeWindowEx _HookWin = new CairoDesktop.WindowsTasks.NativeWindowEx ();
+            CairoDesktop.NativeWindowEx _HookWin = new CairoDesktop.NativeWindowEx ();
             _HookWin.CreateHandle (new System.Windows.Forms.CreateParams ());
-            CairoDesktop.WindowsTasks.WindowsTasksService.SetTaskmanWindow (_HookWin.Handle);
+            CairoDesktop.WindowsTasksService.SetTaskmanWindow (_HookWin.Handle);
             //'Register to receive shell-related events
             //SetTaskmanWindow(hookWin.Handle)
-            CairoDesktop.WindowsTasks.WindowsTasksService.RegisterShellHookWindow (_HookWin.Handle);
+            CairoDesktop.WindowsTasksService.RegisterShellHookWindow (_HookWin.Handle);
 
             Sound = new CairoDesktop.Sound.SoundAPI ();
             Sound.Initialize (_HookWin.Handle);
 
             //'Assume no error occurred
-            WM_SHELLHOOKMESSAGE = CairoDesktop.WindowsTasks.WindowsTasksService.RegisterWindowMessage ("SHELLHOOK");
+            WM_SHELLHOOKMESSAGE = CairoDesktop.WindowsTasksService.RegisterWindowMessage ("SHELLHOOK");
             _HookWin.MessageReceived += ShellWinProc;
 
             app.Run();
@@ -139,7 +139,7 @@
             {
                 Sound.HandleKeypress ((int)msg.WParam);
             }
-            else if (msg.Msg == CairoDesktop.WindowsTasks.WindowsTasksService.WM_SHELLHOOKMESSAGE)
+            else if (msg.Msg == CairoDesktop.WindowsTasksService.WM_SHELLHOOKMESSAGE)
             {
                 if (msg.LParam == IntPtr.Zero)
                     return;
@@ -159,7 +159,7 @@
                 {
                     switch (msg.WParam.ToInt32 ())
                     {
-                        case CairoDesktop.WindowsTasks.WindowsTasksService.HSHELL_WINDOWCREATED:
+                        case CairoDesktop.WindowsTasksService.HSHELL_WINDOWCREATED:
 
                             CairoDesktop.SupportingClasses.NativeMethods.SetWindowPos (MenuBarPtr,
                                 (IntPtr)CairoDesktop.SupportingClasses.NativeMethods.HWND_TOPMOST, 0, 0, 0, 0, 0x0001 | 0x0002);
@@ -168,12 +168,12 @@
                                     (IntPtr)CairoDesktop.SupportingClasses.NativeMethods.HWND_TOPMOST, 0, 0, 0, 0, 0x0001 | 0x0002);
                             break;
 
-                        case CairoDesktop.WindowsTasks.WindowsTasksService.HSHELL_WINDOWDESTROYED:
+                        case CairoDesktop.WindowsTasksService.HSHELL_WINDOWDESTROYED:
 
                             break;
 
-                        case CairoDesktop.WindowsTasks.WindowsTasksService.HSHELL_WINDOWREPLACING:
-                        case CairoDesktop.WindowsTasks.WindowsTasksService.HSHELL_WINDOWREPLACED:
+                        case CairoDesktop.WindowsTasksService.HSHELL_WINDOWREPLACING:
+                        case CairoDesktop.WindowsTasksService.HSHELL_WINDOWREPLACED:
                             CairoDesktop.SupportingClasses.NativeMethods.SetWindowPos (MenuBarPtr,
                                 (IntPtr)CairoDesktop.SupportingClasses.NativeMethods.HWND_TOPMOST, 0, 0, 0, 0, 0x0001 | 0x0002);
                             if(TaskBarPtr != IntPtr.Zero)
@@ -181,8 +181,8 @@
                                     (IntPtr)CairoDesktop.SupportingClasses.NativeMethods.HWND_TOPMOST, 0, 0, 0, 0, 0x0001 | 0x0002);
                             break;
 
-                        case CairoDesktop.WindowsTasks.WindowsTasksService.HSHELL_WINDOWACTIVATED:
-                        case CairoDesktop.WindowsTasks.WindowsTasksService.HSHELL_RUDEAPPACTIVATED:
+                        case CairoDesktop.WindowsTasksService.HSHELL_WINDOWACTIVATED:
+                        case CairoDesktop.WindowsTasksService.HSHELL_RUDEAPPACTIVATED:
                             /*CairoDesktop.SupportingClasses.NativeMethods.SetWindowPos (MenuBarPtr,
                                 (IntPtr)CairoDesktop.SupportingClasses.NativeMethods.HWND_TOPMOST, 0, 0, 0, 0, 0x0001 | 0x0002);
                             if(TaskBarPtr != IntPtr.Zero)

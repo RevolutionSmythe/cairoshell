@@ -42,8 +42,8 @@ namespace CairoDesktop
         private void Taskbar_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             // Manually call dispose on window close...
-            (TasksList.DataContext as WindowsTasks.WindowsTasksService).Dispose();
-            (TasksList2.DataContext as WindowsTasks.WindowsTasksService).Dispose();
+            (TasksList.DataContext as WindowsTasksService).Dispose();
+            (TasksList2.DataContext as WindowsTasksService).Dispose();
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)
@@ -62,7 +62,7 @@ namespace CairoDesktop
 
         private void Desktop_Click (object sender, RoutedEventArgs e)
         {
-            foreach (WindowsTasks.ApplicationWindow w in (TasksList.DataContext as WindowsTasks.WindowsTasksService).Windows)
+            foreach (ApplicationWindow w in (TasksList.DataContext as WindowsTasksService).Windows)
             {
                 if (w.Handle != IntPtr.Zero)
                 {
@@ -73,6 +73,26 @@ namespace CairoDesktop
 
         private void Window_Loaded (object sender, RoutedEventArgs e)
         {
+        }
+
+        internal void EnableAppNames ()
+        {
+            var ListViewStyle1 = Resources["ListViewStyle1"];
+            this.TasksList.Style = (Style)ListViewStyle1;
+            foreach (ApplicationWindow w in (TasksList.DataContext as WindowsTasksService).Windows)
+            {
+                w.ShowName ();
+            }
+        }
+
+        internal void DisableAppNames ()
+        {
+            var ListViewStyle2 = Resources["ListViewStyle2"];
+            this.TasksList.Style = (Style)ListViewStyle2;
+            foreach (ApplicationWindow w in (TasksList.DataContext as WindowsTasksService).Windows)
+            {
+                w.HideName ();
+            }
         }
     }
 }

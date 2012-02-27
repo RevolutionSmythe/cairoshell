@@ -1,0 +1,480 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Diagnostics;
+using System.Windows.Forms;
+using System.Windows;
+using System.Collections.ObjectModel;
+using DR = System.Drawing;
+
+namespace CairoDesktop
+{
+    public class WindowsTasksService : DependencyObject, IDisposable
+    {
+        public delegate void RedrawHandler(IntPtr windowHandle);
+        public event RedrawHandler Redraw;
+
+        private NativeWindowEx _HookWin;
+        private object _windowsLock = new object();
+
+        public static int WM_SHELLHOOKMESSAGE = -1;
+        public const int WH_SHELL = 10;
+
+        public const int HSHELL_WINDOWCREATED = 1;
+        public const int HSHELL_WINDOWDESTROYED = 2;
+        public const int HSHELL_ACTIVATESHELLWINDOW = 3;
+
+        //Windows NT
+        public const int HSHELL_WINDOWACTIVATED = 4;
+        public const int HSHELL_GETMINRECT = 5;
+        public const int HSHELL_REDRAW = 6;
+        public const int HSHELL_TASKMAN = 7;
+        public const int HSHELL_LANGUAGE = 8;
+        public const int HSHELL_SYSMENU = 9;
+        public const int HSHELL_ENDTASK = 10;
+        //Windows 2000
+        public const int HSHELL_ACCESSIBILITYSTATE = 11;
+        public const int HSHELL_APPCOMMAND = 12;
+
+        //Windows XP
+        public const int HSHELL_WINDOWREPLACED = 13;
+        public const int HSHELL_WINDOWREPLACING = 14;
+
+        public const int HSHELL_HIGHBIT = 0x8000;
+        public const int HSHELL_FLASH = (HSHELL_REDRAW | HSHELL_HIGHBIT);
+        public const int HSHELL_RUDEAPPACTIVATED = (HSHELL_WINDOWACTIVATED | HSHELL_HIGHBIT);
+
+        public WindowsTasksService()
+        {
+            this.Initialize();
+        }
+
+        public void Initialize()
+        {
+            try
+            {
+                Windows.Clear ();
+                _HookWin = new NativeWindowEx();
+                _HookWin.CreateHandle(new CreateParams());
+                
+                SetTaskmanWindow(_HookWin.Handle);
+                //'Register to receive shell-related events
+                //SetTaskmanWindow(hookWin.Handle)
+                RegisterShellHookWindow(_HookWin.Handle);
+
+                //'Assume no error occurred
+                WM_SHELLHOOKMESSAGE = RegisterWindowMessage("SHELLHOOK");
+                _HookWin.MessageReceived += ShellWinProc;
+
+                SetMinimizedMetrics();
+                
+
+                int msg = RegisterWindowMessage("TaskbarCreated");
+                //SendMessage(new IntPtr(0xffff), msg, IntPtr.Zero, IntPtr.Zero);
+                SendMessage (GetDesktopWindow (), 0x0400, IntPtr.Zero, IntPtr.Zero);
+
+                //var win = new ApplicationWindow (IntPtr.Zero, this);
+                //Windows.Add (win);//Add the goto desktop item
+                //Note: superseeded by the desktop button (left side)
+                GetOpenWindows ();
+            }
+            catch (Exception ex)
+            {
+                Debug.Print(ex.Message);
+            }
+        }
+
+        [DllImport ("user32")]
+        [return: MarshalAs (UnmanagedType.Bool)]
+        public static extern bool EnumChildWindows (IntPtr window, EnumWindowProc callback, IntPtr i);
+
+        /// <summary>
+        /// Returns a list of child windows
+        /// </summary>
+        /// <param name="parent">Parent of the windows to return</param>
+        /// <returns>List of child windows</returns>
+        public static List<IntPtr> GetChildWindows (IntPtr parent)
+        {
+            List<IntPtr> result = new List<IntPtr> ();
+            GCHandle listHandle = GCHandle.Alloc (result);
+            try
+            {
+                EnumWindowProc childProc = new EnumWindowProc (EnumWindow);
+                EnumChildWindows (parent, childProc, GCHandle.ToIntPtr (listHandle));
+            }
+            finally
+            {
+                if (listHandle.IsAllocated)
+                    listHandle.Free ();
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Callback method to be used when enumerating windows.
+        /// </summary>
+        /// <param name="handle">Handle of the next window</param>
+        /// <param name="pointer">Pointer to a GCHandle that holds a reference to the list to fill</param>
+        /// <returns>True to continue the enumeration, false to bail</returns>
+        private static bool EnumWindow (IntPtr handle, IntPtr pointer)
+        {
+            GCHandle gch = GCHandle.FromIntPtr (pointer);
+            List<IntPtr> list = gch.Target as List<IntPtr>;
+            if (list == null)
+            {
+                throw new InvalidCastException ("GCHandle Target could not be cast as List<IntPtr>");
+            }
+            list.Add (handle);
+            //  You can modify this to check to see if you want to cancel the operation, then return a null here
+            return true;
+        }
+
+        /// <summary>
+        /// Delegate for the EnumChildWindows method
+        /// </summary>
+        /// <param name="hWnd">Window handle</param>
+        /// <param name="parameter">Caller-defined variable; we use it for a pointer to our list</param>
+        /// <returns>True to continue enumerating, false to bail.</returns>
+        public delegate bool EnumWindowProc (IntPtr hWnd, IntPtr parameter);
+        public void GetOpenWindows ()
+        {
+            //Run through all the processes and see whether we can find anything that we need to add already
+            Process[] procs = Process.GetProcesses ();
+            foreach (Process proc in procs)
+            {
+                if (proc.MainWindowHandle != IntPtr.Zero)//If the main window isn't null, its a GUI window
+                {
+                    var win = new ApplicationWindow (proc.MainWindowHandle, this);
+                    if(win.Title != "" && win.ShowInTaskbar)//Make sure that it isn't supposed to be hidden
+                        Windows.Add (win);
+                    else if (!win.ShowInTaskbar)
+                    {
+                        List<IntPtr> childHandles = GetChildWindows (proc.MainWindowHandle);
+                        foreach (IntPtr childHandle in childHandles)
+                        {
+                            win = new ApplicationWindow (childHandle, this);
+                            if (win.Title != "" && win.ShowInTaskbar)//Make sure that it isn't supposed to be hidden
+                            {
+                                Windows.Add (win);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        public void Dispose()
+        {
+            Trace.WriteLine("Disposing of WindowsTasksService");
+            DeregisterShellHookWindow(_HookWin.Handle);
+            // May be contributing to #95
+            //RegisterShellHook(_HookWin.Handle, 0);// 0 = RSH_UNREGISTER - this seems to be undocumented....
+            _HookWin.DestroyHandle();
+        }
+
+        private void SetMinimizedMetrics()
+        {
+            MinimizedMetrics mm = new MinimizedMetrics
+            {
+                cbSize = (uint)Marshal.SizeOf(typeof(MinimizedMetrics))
+            };
+
+            IntPtr mmPtr = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(MinimizedMetrics)));
+
+            try
+            {
+                Marshal.StructureToPtr(mm, mmPtr, true);
+                SystemParametersInfo(SPI.SPI_GETMINIMIZEDMETRICS, mm.cbSize, mmPtr, SPIF.None);
+                
+                mm.iArrange |= MinimizedMetricsArrangement.Hide;
+                Marshal.StructureToPtr(mm, mmPtr, true);
+                SystemParametersInfo(SPI.SPI_SETMINIMIZEDMETRICS, mm.cbSize, mmPtr, SPIF.None);
+            }
+            finally
+            {
+            	Marshal.DestroyStructure(mmPtr, typeof(MinimizedMetrics));
+                Marshal.FreeHGlobal(mmPtr);
+            }
+        }
+
+        private void ShellWinProc(System.Windows.Forms.Message msg)
+        {
+            if (msg.Msg == WM_SHELLHOOKMESSAGE)
+            {
+                try
+                {
+                    var win = new ApplicationWindow(msg.LParam, this);
+
+                    lock (this._windowsLock)
+                    {
+                        switch (msg.WParam.ToInt32())
+                        {
+                            case HSHELL_WINDOWCREATED:
+                                Trace.WriteLine("Created: " + msg.LParam.ToString());
+                                if(win.Title != "")
+                                    Windows.Add(win);
+                                break;
+
+                            case HSHELL_WINDOWDESTROYED:
+                                Trace.WriteLine("Destroyed: " + msg.LParam.ToString());
+                                if (this.Windows.Contains(win))
+                                    this.Windows.Remove(win);
+
+                                break;
+
+                            case HSHELL_WINDOWREPLACING:
+                            case HSHELL_WINDOWREPLACED:
+                                Trace.WriteLine("Replaced: " + msg.LParam.ToString());
+                                if (this.Windows.Contains(win))
+                                {
+                                    GetRealWindow (msg, ref win);
+                                    win.State = ApplicationWindow.WindowState.Inactive;
+                                }
+                                else
+                                {
+                                    win.State = ApplicationWindow.WindowState.Inactive;
+                                    if (win.Title != "")
+                                        Windows.Add (win);
+                                }
+                                break;
+
+                            case HSHELL_WINDOWACTIVATED:
+                            case HSHELL_RUDEAPPACTIVATED:
+                                Trace.WriteLine("Activated: " + msg.LParam.ToString());
+
+                                if (msg.LParam == IntPtr.Zero)
+                                {
+                                    break;
+                                }
+
+                                foreach (var aWin in this.Windows)
+                                {
+                                    if(aWin.State == ApplicationWindow.WindowState.Active)
+                                        aWin.State = ApplicationWindow.WindowState.Inactive;
+                                }
+
+                                if (this.Windows.Contains(win))
+                                {
+                                    GetRealWindow (msg, ref win);
+                                    win.State = ApplicationWindow.WindowState.Active;
+                                }
+                                else
+                                {
+                                    win.State = ApplicationWindow.WindowState.Active;
+                                    if (win.Title != "")
+                                        Windows.Add (win);
+                                }
+                                break;
+
+                            case HSHELL_FLASH:
+                                Trace.WriteLine("Flashing window: " + msg.LParam.ToString());
+                                if (this.Windows.Contains(win))
+                                {
+                                    GetRealWindow (msg, ref win);
+                                    win.State = ApplicationWindow.WindowState.Flashing;
+                                }
+                                else
+                                {
+                                    win.State = ApplicationWindow.WindowState.Flashing;
+                                    if (win.Title != "")
+                                        Windows.Add (win);
+                                }
+                                break;
+
+                            case HSHELL_ACTIVATESHELLWINDOW:
+                                Trace.WriteLine("Activeate shell window called.");
+                                break;
+
+                            case HSHELL_ENDTASK:
+                                Trace.WriteLine("EndTask called.");
+                                break;
+
+                            case HSHELL_GETMINRECT:
+                                Trace.WriteLine("GetMinRect called.");
+                                SHELLHOOKINFO winHandle = (SHELLHOOKINFO)Marshal.PtrToStructure(msg.LParam, typeof(SHELLHOOKINFO));
+                                winHandle.rc.Top = 0;
+                                winHandle.rc.Left = 0;
+                                winHandle.rc.Bottom = 100;
+                                winHandle.rc.Right = 100;
+                                Marshal.StructureToPtr(winHandle, msg.LParam, true);
+                                msg.Result = winHandle.hwnd;
+                                break;
+
+                            case HSHELL_REDRAW:
+                                Trace.WriteLine("Redraw called.");
+                                this.OnRedraw(msg.LParam);
+                                break;
+
+                            // TaskMan needs to return true if we provide our own task manager to prevent explorers.
+                            // case HSHELL_TASKMAN:
+                            //     Trace.WriteLine("TaskMan Message received.");
+                            //     break;
+
+                            default:
+                                Trace.WriteLine("Uknown called. " + msg.Msg.ToString());
+                                break;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Trace.WriteLine("Exception: " + ex.ToString());
+                    Debugger.Break();
+                }
+            }
+        }
+
+        private void GetRealWindow (System.Windows.Forms.Message msg, ref ApplicationWindow win)
+        {
+            win = this.Windows.First (wnd => wnd.Handle == msg.LParam);
+        }
+
+        private void OnRedraw(IntPtr windowHandle)
+        {
+            if (this.Redraw != null)
+            {
+                this.Redraw(windowHandle);
+            }
+        }
+
+        [DllImport("user32.dll")]
+        public static extern bool RegisterShellHookWindow (IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        public static extern int RegisterWindowMessage (string message);
+
+        [DllImport("user32.dll")]
+        public static extern bool SetTaskmanWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr SendMessage (IntPtr hwnd, int message, IntPtr wparam, IntPtr lparam);
+
+        [DllImport("user32.dll")]
+        public static extern bool DeregisterShellHookWindow (IntPtr hWnd);
+
+        [DllImport("Shell32.dll")]
+        public static extern bool RegisterShellHook (IntPtr hWnd, uint flags);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr GetDesktopWindow ();
+
+        [DllImport("user32.dll")]
+        public static extern bool SystemParametersInfo (SPI uiAction, uint uiParam, IntPtr pvParam, SPIF fWinIni);
+
+        public ObservableCollection<ApplicationWindow> Windows
+        {
+            get
+            {
+                return base.GetValue(windowsProperty) as ObservableCollection<ApplicationWindow>;
+            }
+            set
+            {
+                SetValue(windowsProperty, value);
+            }
+        }
+
+        private static DependencyProperty windowsProperty = DependencyProperty.Register("Windows", typeof(ObservableCollection<ApplicationWindow>), typeof(WindowsTasksService), new PropertyMetadata(new ObservableCollection<ApplicationWindow>()));
+        
+        [Flags]
+        public enum SPIF
+        {
+           None =          0x00,
+           SPIF_UPDATEINIFILE =    0x01,  // Writes the new system-wide parameter setting to the user profile.
+           SPIF_SENDCHANGE =       0x02,  // Broadcasts the WM_SETTINGCHANGE message after updating the user profile.
+           SPIF_SENDWININICHANGE = 0x02   // Same as SPIF_SENDCHANGE.
+        }
+
+        public enum SPI : uint
+        {
+            SPI_GETMINIMIZEDMETRICS = 0x002B,
+            SPI_SETMINIMIZEDMETRICS = 0x002C
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct MinimizedMetrics
+        {
+            public uint cbSize;
+            public int iWidth;
+            public int iHorzGap;
+            public int iVertGap;
+            public MinimizedMetricsArrangement iArrange;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct RECT
+        {
+            public int Top;
+            public int Left;
+            public int Bottom;
+            public int Right;
+
+            public RECT(int left_, int top_, int right_, int bottom_)
+            {
+                Left = left_;
+                Top = top_;
+                Right = right_;
+                Bottom = bottom_;
+            }
+
+            public int Height { get { return Bottom - Top; } }
+            public int Width { get { return Right - Left; } }
+            public DR.Size Size { get { return new DR.Size(Width, Height); } }
+
+            public Point Location { get { return new Point(Left, Top); } }
+
+            // Handy method for converting to a System.Drawing.Rectangle
+            public DR.Rectangle ToRectangle()
+            { return DR.Rectangle.FromLTRB(Left, Top, Right, Bottom); }
+
+            public static RECT FromRectangle(DR.Rectangle rectangle)
+            {
+                return new RECT(rectangle.Left, rectangle.Top, rectangle.Right, rectangle.Bottom);
+            }
+
+            public override int GetHashCode()
+            {
+                return Left ^ ((Top << 13) | (Top >> 0x13))
+                  ^ ((Width << 0x1a) | (Width >> 6))
+                  ^ ((Height << 7) | (Height >> 0x19));
+            }
+
+            #region Operator overloads
+
+            public static implicit operator DR.Rectangle(RECT rect)
+            {
+                return rect.ToRectangle();
+            }
+
+            public static implicit operator RECT(DR.Rectangle rect)
+            {
+                return FromRectangle(rect);
+            }
+
+            #endregion
+
+        }
+
+        [Flags]
+        public enum MinimizedMetricsArrangement
+        {
+            BottomLeft = 0,
+            BottomRight = 1,
+            TopLeft = 2,
+            TopRight = 3,
+            Left = 0,
+            Right = 0,
+            Up = 4,
+            Down = 4,
+            Hide = 8
+        }
+
+        	[StructLayout(LayoutKind.Sequential)]
+	        private struct SHELLHOOKINFO
+            {
+		        public IntPtr hwnd;
+		        public RECT rc;
+            }
+    }
+}
