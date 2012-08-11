@@ -17,8 +17,6 @@
         private static System.Windows.Window _parentWindow;
 
         public static MenuBar MenuBarWindow { get; set; }
-        public static MenuBarShadow MenuBarShadowWindow { get; set; }
-        public static Taskbar TaskbarWindow { get; set; }
         public static Desktop DesktopWindow { get; set; }
         public static Sound.SoundAPI Sound { get; set; }
 
@@ -91,39 +89,23 @@
                 DesktopWindow.ShowWindowBottomMost(f.Handle);
             }*/
 
-            if (Properties.Settings.Default.EnableMenuBarShadow)
-            {
-                MenuBarShadowWindow = new MenuBarShadow() { Owner = _parentWindow };
-                MenuBarShadowWindow.Show();
-            }
-
             Int32 TOPMOST_FLAGS = 0x0001 | 0x0002;
-            WindowInteropHelper taskbarWindowHelper = null;
-            if (Properties.Settings.Default.EnableTaskbar)
-            {
-                TaskbarWindow = new Taskbar() { Owner = _parentWindow };
-                TaskbarWindow.Show();
-                taskbarWindowHelper = new WindowInteropHelper (TaskbarWindow);
-                TaskBarPtr = taskbarWindowHelper.Handle;
-                CairoDesktop.SupportingClasses.NativeMethods.SetWindowPos (taskbarWindowHelper.Handle, (IntPtr)CairoDesktop.SupportingClasses.NativeMethods.HWND_TOPMOST, 0, 0, 0, 0, TOPMOST_FLAGS);
-            }
             WindowInteropHelper menuBarHelper = new WindowInteropHelper (MenuBarWindow);
             MenuBarPtr = menuBarHelper.Handle;
             CairoDesktop.SupportingClasses.NativeMethods.SetWindowPos (menuBarHelper.Handle, (IntPtr)CairoDesktop.SupportingClasses.NativeMethods.HWND_TOPMOST, 0, 0, 0, 0, TOPMOST_FLAGS);
 
-            CairoDesktop.NativeWindowEx _HookWin = new CairoDesktop.NativeWindowEx ();
+            CairoDesktop.NativeWindowEx _HookWin = new CairoDesktop.NativeWindowEx();
             _HookWin.CreateHandle (new System.Windows.Forms.CreateParams ());
             CairoDesktop.WindowsTasksService.SetTaskmanWindow (_HookWin.Handle);
-            //'Register to receive shell-related events
-            //SetTaskmanWindow(hookWin.Handle)
-            CairoDesktop.WindowsTasksService.RegisterShellHookWindow (_HookWin.Handle);
+            CairoDesktop.WindowsTasksService.RegisterShellHookWindow(_HookWin.Handle);
+            WM_SHELLHOOKMESSAGE = CairoDesktop.WindowsTasksService.RegisterWindowMessage("SHELLHOOK");
 
-            Sound = new CairoDesktop.Sound.SoundAPI ();
-            Sound.Initialize (_HookWin.Handle);
+            Sound = new CairoDesktop.Sound.SoundAPI();
+            Sound.Initialize(_HookWin.Handle);
+
+            _HookWin.MessageReceived += ShellWinProc;
 
             //'Assume no error occurred
-            WM_SHELLHOOKMESSAGE = CairoDesktop.WindowsTasksService.RegisterWindowMessage ("SHELLHOOK");
-            _HookWin.MessageReceived += ShellWinProc;
 
             app.Run();
 
@@ -139,22 +121,11 @@
             {
                 Sound.HandleKeypress ((int)msg.WParam);
             }
-            else if (msg.Msg == CairoDesktop.WindowsTasksService.WM_SHELLHOOKMESSAGE)
+            else if (msg.Msg == WM_SHELLHOOKMESSAGE)
             {
+                WindowsTasksService.ShellWinProc(msg);
                 if (msg.LParam == IntPtr.Zero)
                     return;
-                //Failed attempt to resize windows so that they are under the task bar
-                /*CairoDesktop.WindowsTasks.ApplicationWindow.WINDOWPLACEMENT placement;
-                CairoDesktop.WindowsTasks.ApplicationWindow.GetWindowPlacement (msg.LParam, out placement);
-                int newHeight = placement.rcNormalPosition.Bottom - placement.rcNormalPosition.Top;
-                newHeight -= 8;
-                int width = placement.rcNormalPosition.Right - placement.rcNormalPosition.Left;
-                if (newHeight <= 0 || width <= 0)
-                    return;
-                var win = new CairoDesktop.WindowsTasks.ApplicationWindow (msg.LParam, null);
-                CairoDesktop.SupportingClasses.NativeMethods.SetWindowPos (msg.LParam,
-                                    (IntPtr)0, placement.rcNormalPosition.X, placement.rcNormalPosition.Y + 17, width, newHeight, 0);
-                */
                 try
                 {
                     switch (msg.WParam.ToInt32 ())
@@ -200,35 +171,6 @@
                     Trace.WriteLine ("Exception: " + ex.ToString ());
                     Debugger.Break ();
                 }
-            }
-        }
-
-        /// <summary>
-        /// Checks the version of the framework available on the machine. We require .NET 3.5SP1 for the WPFToolkit.
-        /// </summary>
-        /// <returns>Result of framework check.</returns>
-        private static bool FrameworkCheck()
-        {
-            try
-            {
-                var key = Registry.LocalMachine.OpenSubKey("Software\\Microsoft\\NET Framework Setup\\NDP\\v3.5", false);
-
-                int verValue = (key == null) ? 0 : (int)key.GetValue("SP", 0, RegistryValueOptions.None);
-
-                if (verValue != 0)
-                {
-                    return true;
-                }
-                else
-                {
-                    CairoMessage.Show("Cairo requires .NET Framework 3.5 SP1 or newer to run.  You can visit microsoft.com to obtain it.", "Error", MessageBoxButton.OK, MessageBoxImage.Stop);
-                    return false;
-                }
-            }
-            catch (Exception ex)
-            {
-                CairoMessage.Show("Cairo requires .NET Framework 3.5 SP1 or newer to run.  You can visit microsoft.com to obtain it.", "Error", MessageBoxButton.OK, MessageBoxImage.Stop);
-                return false;
             }
         }
 
@@ -281,13 +223,13 @@
         {
             try
             {
-                if (Properties.Settings.Default.IsFirstRun == true)
+                /*if (Properties.Settings.Default.IsFirstRun == true)
                 {
                     Properties.Settings.Default.IsFirstRun = false;
                     Properties.Settings.Default.EnableTaskbar = true;
                     Properties.Settings.Default.Save();
                     AppGrabber.AppGrabber.Instance.ShowDialog();
-                }
+                }*/
             }
             catch (Exception ex)
             {

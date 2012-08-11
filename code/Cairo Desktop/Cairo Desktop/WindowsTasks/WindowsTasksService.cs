@@ -8,16 +8,14 @@ using System.Windows;
 using System.Collections.ObjectModel;
 using DR = System.Drawing;
 using ManagedWinapi.Windows;
+using System.Security.Principal;
 
 namespace CairoDesktop
 {
-    public class WindowsTasksService : DependencyObject, IDisposable
+    public class WindowsTasksService : DependencyObject
     {
-        public delegate void RedrawHandler(IntPtr windowHandle);
-        public event RedrawHandler Redraw;
-
-        private NativeWindowEx _HookWin;
-        private object _windowsLock = new object();
+        private static object _windowsLock = new object();
+        public static event EventHandler WindowsChanged = null;
 
         public static int WM_SHELLHOOKMESSAGE = -1;
         public const int WH_SHELL = 10;
@@ -46,50 +44,16 @@ namespace CairoDesktop
         public const int HSHELL_FLASH = (HSHELL_REDRAW | HSHELL_HIGHBIT);
         public const int HSHELL_RUDEAPPACTIVATED = (HSHELL_WINDOWACTIVATED | HSHELL_HIGHBIT);
 
-        public WindowsTasksService()
+        static WindowsTasksService()
         {
-            this.Initialize();
+            Windows = GetAllToplevelWindows();
+            SetMinimizedMetrics();
+            int msg = RegisterWindowMessage("TaskbarCreated");
+            SendMessage(GetDesktopWindow(), 0x0400, IntPtr.Zero, IntPtr.Zero);
+            //SendMessage(new IntPtr(0xffff), msg, IntPtr.Zero, IntPtr.Zero);
         }
 
-        public void Initialize()
-        {
-            try
-            {
-                Windows = GetAllToplevelWindows();
-                _HookWin = new NativeWindowEx();
-                _HookWin.CreateHandle(new CreateParams());
-
-                //'Register to receive shell-related events
-                SetTaskmanWindow(_HookWin.Handle);
-                WM_SHELLHOOKMESSAGE = RegisterWindowMessage("SHELLHOOK");
-                RegisterShellHookWindow(_HookWin.Handle);
-
-                //'Assume no error occurred
-                _HookWin.MessageReceived += ShellWinProc;
-
-                SetMinimizedMetrics();
-                
-
-                int msg = RegisterWindowMessage("TaskbarCreated");
-                //SendMessage(new IntPtr(0xffff), msg, IntPtr.Zero, IntPtr.Zero);
-                SendMessage (GetDesktopWindow (), 0x0400, IntPtr.Zero, IntPtr.Zero);
-            }
-            catch (Exception ex)
-            {
-                Debug.Print(ex.Message);
-            }
-        }
-
-        public void Dispose()
-        {
-            Trace.WriteLine("Disposing of WindowsTasksService");
-            DeregisterShellHookWindow(_HookWin.Handle);
-            // May be contributing to #95
-            //RegisterShellHook(_HookWin.Handle, 0);// 0 = RSH_UNREGISTER - this seems to be undocumented....
-            _HookWin.DestroyHandle();
-        }
-
-        private void SetMinimizedMetrics()
+        private static void SetMinimizedMetrics()
         {
             MinimizedMetrics mm = new MinimizedMetrics
             {
@@ -114,124 +78,119 @@ namespace CairoDesktop
             }
         }
 
-        private void ShellWinProc(System.Windows.Forms.Message msg)
+        public static void ShellWinProc(System.Windows.Forms.Message msg)
         {
-            if (msg.Msg == WM_SHELLHOOKMESSAGE)
+            try
             {
-                try
+                /*var win = Windows.FirstOrDefault((w) => w.HWnd == msg.LParam);
+                if (win == null && msg.LParam == IntPtr.Zero)
+                    win = SystemWindow.DesktopWindow;*/
+                lock (_windowsLock)
                 {
-                    /*var win = Windows.FirstOrDefault((w) => w.HWnd == msg.LParam);
-                    if (win == null && msg.LParam == IntPtr.Zero)
-                        win = SystemWindow.DesktopWindow;*/
-                    lock (this._windowsLock)
+                    switch (msg.WParam.ToInt32())
                     {
-                        switch (msg.WParam.ToInt32())
-                        {
-                            case HSHELL_WINDOWCREATED:
-                            case HSHELL_WINDOWDESTROYED:
-                            case HSHELL_WINDOWREPLACING:
-                            case HSHELL_WINDOWREPLACED:
-                                Windows = GetAllToplevelWindows();
+                        case HSHELL_WINDOWCREATED:
+                        case HSHELL_WINDOWDESTROYED:
+                        case HSHELL_WINDOWREPLACING:
+                        case HSHELL_WINDOWREPLACED:
+                            Windows = GetAllToplevelWindows();
+                            FireWindowsChangedEvent();
+                            break;
+
+                        /*case HSHELL_WINDOWACTIVATED:
+                        case HSHELL_RUDEAPPACTIVATED:
+                            Trace.WriteLine("Activated: " + msg.LParam.ToString());
+
+                            if (msg.LParam == IntPtr.Zero)
+                            {
                                 break;
+                            }
 
-                            /*case HSHELL_WINDOWACTIVATED:
-                            case HSHELL_RUDEAPPACTIVATED:
-                                Trace.WriteLine("Activated: " + msg.LParam.ToString());
+                            foreach (var aWin in this.Windows)
+                            {
+                                if(aWin.State == ApplicationWindow.WindowState.Active)
+                                    aWin.State = ApplicationWindow.WindowState.Inactive;
+                            }
 
-                                if (msg.LParam == IntPtr.Zero)
-                                {
-                                    break;
-                                }
+                            if (this.Windows.Contains(win))
+                            {
+                                GetRealWindow (msg, ref win);
+                                win.State = ApplicationWindow.WindowState.Active;
+                            }
+                            else
+                            {
+                                win.State = ApplicationWindow.WindowState.Active;
+                                if (win.Title != "")
+                                    Windows.Add (win);
+                            }
+                            break;
 
-                                foreach (var aWin in this.Windows)
-                                {
-                                    if(aWin.State == ApplicationWindow.WindowState.Active)
-                                        aWin.State = ApplicationWindow.WindowState.Inactive;
-                                }
+                        case HSHELL_FLASH:
+                            Trace.WriteLine("Flashing window: " + msg.LParam.ToString());
+                            if (this.Windows.Contains(win))
+                            {
+                                GetRealWindow (msg, ref win);
+                                win.State = ApplicationWindow.WindowState.Flashing;
+                            }
+                            else
+                            {
+                                win.State = ApplicationWindow.WindowState.Flashing;
+                                if (win.Title != "")
+                                    Windows.Add (win);
+                            }
+                            break;
+                            */
+                        case HSHELL_ACTIVATESHELLWINDOW:
+                            Trace.WriteLine("Activeate shell window called.");
+                            break;
 
-                                if (this.Windows.Contains(win))
-                                {
-                                    GetRealWindow (msg, ref win);
-                                    win.State = ApplicationWindow.WindowState.Active;
-                                }
-                                else
-                                {
-                                    win.State = ApplicationWindow.WindowState.Active;
-                                    if (win.Title != "")
-                                        Windows.Add (win);
-                                }
-                                break;
+                        case HSHELL_ENDTASK:
+                            Trace.WriteLine("EndTask called.");
+                            break;
 
-                            case HSHELL_FLASH:
-                                Trace.WriteLine("Flashing window: " + msg.LParam.ToString());
-                                if (this.Windows.Contains(win))
-                                {
-                                    GetRealWindow (msg, ref win);
-                                    win.State = ApplicationWindow.WindowState.Flashing;
-                                }
-                                else
-                                {
-                                    win.State = ApplicationWindow.WindowState.Flashing;
-                                    if (win.Title != "")
-                                        Windows.Add (win);
-                                }
-                                break;
-                                */
-                            case HSHELL_ACTIVATESHELLWINDOW:
-                                Trace.WriteLine("Activeate shell window called.");
-                                break;
+                        case HSHELL_GETMINRECT:
+                            Trace.WriteLine("GetMinRect called.");
+                            SHELLHOOKINFO winHandle = (SHELLHOOKINFO)Marshal.PtrToStructure(msg.LParam, typeof(SHELLHOOKINFO));
+                            winHandle.rc.Top = 0;
+                            winHandle.rc.Left = 0;
+                            winHandle.rc.Bottom = 100;
+                            winHandle.rc.Right = 100;
+                            Marshal.StructureToPtr(winHandle, msg.LParam, true);
+                            msg.Result = winHandle.hwnd;
+                            break;
 
-                            case HSHELL_ENDTASK:
-                                Trace.WriteLine("EndTask called.");
-                                break;
+                        case HSHELL_REDRAW:
+                            Trace.WriteLine("Redraw called.");
+                            break;
 
-                            case HSHELL_GETMINRECT:
-                                Trace.WriteLine("GetMinRect called.");
-                                SHELLHOOKINFO winHandle = (SHELLHOOKINFO)Marshal.PtrToStructure(msg.LParam, typeof(SHELLHOOKINFO));
-                                winHandle.rc.Top = 0;
-                                winHandle.rc.Left = 0;
-                                winHandle.rc.Bottom = 100;
-                                winHandle.rc.Right = 100;
-                                Marshal.StructureToPtr(winHandle, msg.LParam, true);
-                                msg.Result = winHandle.hwnd;
-                                break;
+                        // TaskMan needs to return true if we provide our own task manager to prevent explorers.
+                        // case HSHELL_TASKMAN:
+                        //     Trace.WriteLine("TaskMan Message received.");
+                        //     break;
 
-                            case HSHELL_REDRAW:
-                                Trace.WriteLine("Redraw called.");
-                                this.OnRedraw(msg.LParam);
-                                break;
-
-                            // TaskMan needs to return true if we provide our own task manager to prevent explorers.
-                            // case HSHELL_TASKMAN:
-                            //     Trace.WriteLine("TaskMan Message received.");
-                            //     break;
-
-                            default:
-                                Trace.WriteLine("Unknown called. " + msg.Msg.ToString());
-                                break;
-                        }
+                        default:
+                            Trace.WriteLine("Unknown called. " + msg.Msg.ToString());
+                            break;
                     }
                 }
-                catch (Exception ex)
-                {
-                    Trace.WriteLine("Exception: " + ex.ToString());
-                    Debugger.Break();
-                }
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine("Exception: " + ex.ToString());
+                Debugger.Break();
             }
         }
 
-        private ObservableCollection<ExtendedSystemWindow> GetAllToplevelWindows()
+        private static void FireWindowsChangedEvent()
+        {
+            if (WindowsChanged != null)
+                WindowsChanged(null, EventArgs.Empty);
+        }
+
+        private static ObservableCollection<ExtendedSystemWindow> GetAllToplevelWindows()
         {
             return new ObservableCollection<ExtendedSystemWindow>(SystemWindow.AllToplevelWindows.Where((w) => w.Visible && w.Title != "").
                 ToList().ConvertAll < ExtendedSystemWindow>((w) => new ExtendedSystemWindow(w.HWnd)));
-        }
-
-        private void OnRedraw(IntPtr windowHandle)
-        {
-            if (this.Redraw != null)
-            {
-                this.Redraw(windowHandle);
-            }
         }
 
         [DllImport("user32.dll")]
@@ -365,34 +324,27 @@ namespace CairoDesktop
             }
     }
 
-    public class ExtendedSystemWindow : SystemWindow
+    public class ExtendedSystemWindow : SystemWindow, IDisposable
     {
+        private System.Drawing.Icon _cachedIcon = null;
+
         public System.Drawing.Icon Icon
         {
-            /*get 
-            {
-                try
-                {
-                    if (Image == null)
-                        return null;
-                }
-                catch { return null; }
-                return (System.Drawing.Bitmap)Image;
-            }*/
             get
             {
                 if (this.HWnd == IntPtr.Zero)
                     return null;
+                if (_cachedIcon != null)
+                    return _cachedIcon;
                 System.Drawing.Icon ico = null;
+
                 try
                 {
-                    var ex = new IconExtractor(Process.MainModule.FileName);
-                    int count = ex.IconCount;
-                    ico = ex.GetIcon(0);
-                    var icos = IconExtractor.SplitIcon(ico);
-                    return icos.OrderByDescending((i) => i.Height).First();
+                    ico = Etier.IconHelper.IconReader.GetFileIcon(this.Process.MainModule.FileName, Etier.IconHelper.IconReader.IconSize.Large, false);
+                    return ico;
                 }
                 catch { }
+                Debug.Write("Failed to get permissions to access process, falling back to small ico only.");
                 uint iconHandle = GetIconForWindow();
 
                 try
@@ -403,6 +355,7 @@ namespace CairoDesktop
                 {
                     ico = null;
                 }
+                _cachedIcon = ico;
                 return ico;
             }
         }
@@ -429,6 +382,18 @@ namespace CairoDesktop
         public ExtendedSystemWindow(IntPtr hWnd)
             : base(hWnd)
         {
+        }
+
+        [DllImport("user32.dll", SetLastError=true)]
+        private static extern bool BringWindowToTop(IntPtr hWnd);
+        public void BringWindowToFront()
+        {
+            BringWindowToTop(HWnd);
+        }
+
+        public void Dispose()
+        {
+            _cachedIcon.Dispose();
         }
     }
 }

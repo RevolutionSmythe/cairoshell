@@ -30,16 +30,16 @@ namespace CairoDesktop
         public Desktop()
         {
             InitializeComponent();
-            if (Properties.Settings.Default.EnableDynamicDesktop)
+            /*if (Properties.Settings.Default.EnableDynamicDesktop)
             {
                 this.DesktopNavToolbar.IsOpen = true;
                 this.DesktopNavToolbar.StaysOpen = true;
             }
             else
-            {
+            {*/
                 this.DesktopNavToolbar.IsOpen = false;
                 this.DesktopNavToolbar.StaysOpen = false;
-            }
+            //}
         }
 
         #region sorry for commenting this out

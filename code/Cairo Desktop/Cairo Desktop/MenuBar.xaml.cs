@@ -34,7 +34,6 @@ namespace CairoDesktop
         private int appbarMessageId = -1;
 
         private String configFilePath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)+@"\CairoAppConfig.xml";
-        private String fileManger = Environment.ExpandEnvironmentVariables(Properties.Settings.Default.FileManager);
 
         public List<ExtendedSystemWindow> TaskBarItems
         {
@@ -45,54 +44,9 @@ namespace CairoDesktop
         public MenuBar()
         {
             this.InitializeComponent();
-            // Sets the Theme for Cairo
-            string theme = Properties.Settings.Default.CairoTheme;
-            if (theme != "Cairo.xaml")
-            {
-                ResourceDictionary CairoDictionary = (ResourceDictionary)XamlReader.Load(System.Xml.XmlReader.Create(AppDomain.CurrentDomain.BaseDirectory + theme));
-                this.Resources.MergedDictionaries[0] = CairoDictionary;
-            }
-            if (Properties.Settings.Default.UseDarkIcons) {
-                SolidColorBrush borderBrushColor = new SolidColorBrush();
-                borderBrushColor.Color = Color.FromArgb(135, 0, 0, 0);
-                this.BorderBrush = borderBrushColor;
-                this.BorderThickness = new Thickness(0, 0, 0, 0);
-                this.Height = 48;
-                this.MaxHeight = 48;
-                this.Background = Brushes.Transparent;
-                BitmapImage CairoMenuIconBlack = new BitmapImage();
-                CairoMenuIconBlack.BeginInit();
-                CairoMenuIconBlack.UriSource = new Uri("pack://application:,,,/Resources/cairoMenuBlack.png", UriKind.RelativeOrAbsolute);
-                CairoMenuIconBlack.EndInit();
-                CairoMenuIcon.Source = CairoMenuIconBlack;
-                BitmapImage CairoSearchMenuIconBlack = new BitmapImage();
-                CairoSearchMenuIconBlack.BeginInit();
-                CairoSearchMenuIconBlack.UriSource = new Uri("pack://application:,,,/Resources/searchBlack.png", UriKind.RelativeOrAbsolute);
-                CairoSearchMenuIconBlack.EndInit();
-                CairoSearchMenuIcon.Source = CairoSearchMenuIconBlack;
-            }
 
-            TaskBarItems = new List<ExtendedSystemWindow>();
-            WindowsTasksService service = new WindowsTasksService();
-            foreach(string path in TaskbarPinnedItems.GetPinnedTaskBarItems())
-            {
-                var item = CairoDesktop.WindowsTasksService.Windows.FirstOrDefault((w) =>
-                    {
-                        try
-                        {
-                            WshShell shell = new WshShell();
-                            IWshShortcut link = (IWshShortcut)shell.CreateShortcut(path);
-                            return w.Process.MainModule.FileName == link.TargetPath;
-                        }
-                        catch{ }
-                        return false;
-                    });
-                if (item != null)
-                    TaskBarItems.Add(item);
-            }
-            TaskBarItems.AddRange(WindowsTasksService.Windows);
-
-            TasksList.ItemsSource = TaskBarItems;
+            WindowsTasksService.WindowsChanged += WindowsTasksService_WindowsChanged;
+            BuildTaskBarItems();
 
             this.CommandBindings.Add(new CommandBinding(CustomCommands.OpenSearchResult, ExecuteOpenSearchResult));
 
@@ -134,6 +88,41 @@ namespace CairoDesktop
             {
                 ql.ShowInMenu = false;
             }
+        }
+
+        void WindowsTasksService_WindowsChanged(object sender, EventArgs e)
+        {
+            BuildTaskBarItems();
+        }
+
+        private void BuildTaskBarItems()
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                TaskBarItems = new List<ExtendedSystemWindow>();
+                foreach (string path in TaskbarPinnedItems.GetPinnedTaskBarItems())
+                {
+                    if (!path.EndsWith(".lnk"))
+                        continue;
+                    WshShell shell = new WshShell();
+                    IWshShortcut link = (IWshShortcut)shell.CreateShortcut(path);
+                    var item = CairoDesktop.WindowsTasksService.Windows.FirstOrDefault((w) =>
+                    {
+                        try
+                        {
+                            return Cairo.WindowsHooksWrapper.NativeMethods.GetProcessPath(w.HWnd) == link.TargetPath;
+                        }
+                        catch { }
+                        return false;
+                    });
+                    if (item != null)
+                        TaskBarItems.Add(item);
+                }
+                foreach (var win in WindowsTasksService.Windows.Where((w) => !TaskBarItems.Any((t) => t.HWnd == w.HWnd)))
+                    TaskBarItems.Add(win);
+
+                TasksList.ItemsSource = TaskBarItems;
+            }));
         }
 
         ///
@@ -212,24 +201,18 @@ namespace CairoDesktop
             // Create our timer for clock
             DispatcherTimer timer = new DispatcherTimer(new TimeSpan(0, 0, 1), DispatcherPriority.Normal, delegate
             {
-                string timeFormat = Properties.Settings.Default.TimeFormat;
-                if (string.IsNullOrEmpty(timeFormat))
-                {
-                    timeFormat = "T"; /// culturally safe long time pattern
-                }
-
-                dateText.Text = DateTime.Now.ToString(timeFormat);
+                timeText.Text = DateTime.Now.ToString("h:mm tt  ");
+                monthText.Text = DateTime.Now.ToString("MMMM ");
+                dayText.Text = DateTime.Now.Day.ToString() + "   ";
             }, this.Dispatcher);
 
             DispatcherTimer fulldatetimer = new DispatcherTimer(new TimeSpan(0, 0, 1), DispatcherPriority.Normal, delegate
             {
-                string dateFormat = Properties.Settings.Default.DateFormat;
-                if (string.IsNullOrEmpty(dateFormat))
-                {
-                    dateFormat = "D"; // Culturally safe Long Date Pattern
-                }
+                string dateFormat = "D"; // Culturally safe Long Date Pattern
 
-                dateText.ToolTip = DateTime.Now.ToString(dateFormat);
+                timeText.ToolTip = DateTime.Now.ToString(dateFormat);
+                monthText.ToolTip = DateTime.Now.ToString(dateFormat);
+                dayText.ToolTip = DateTime.Now.ToString(dateFormat);
             }, this.Dispatcher);
         }
 
@@ -251,10 +234,7 @@ namespace CairoDesktop
             appbarMessageId = SHAppBarMessageHelper.RegisterBar(handle, size);
             //SHAppBarMessageHelper.QuerySetPosition(handle, size, SHAppBarMessage1.Win32.NativeMethods.ABEdge.ABE_TOP);
 
-            if (Properties.Settings.Default.EnableSysTray == true)
-            {
-                SysTray.InitializeSystemTray();
-            }
+            SysTray.InitializeSystemTray();
         }
 
         private void OnWindowClosing(object sender, CancelEventArgs e)
@@ -356,47 +336,10 @@ namespace CairoDesktop
             }
         }
 
-        private void OpenMyDocs(object sender, RoutedEventArgs e)
-        {
-            System.Diagnostics.Process.Start(fileManger, Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
-        }
-
-        private void OpenMyPics(object sender, RoutedEventArgs e)
-        {
-            System.Diagnostics.Process.Start(fileManger, Environment.GetFolderPath(Environment.SpecialFolder.MyPictures));
-        }
-
-        private void OpenMyMusic(object sender, RoutedEventArgs e)
-        {
-            System.Diagnostics.Process.Start(fileManger, Environment.GetFolderPath(Environment.SpecialFolder.MyMusic));
-        }
-
-        private void OpenDownloads(object sender, RoutedEventArgs e)
-        {
-            string userprofile = System.Environment.GetEnvironmentVariable("USERPROFILE");
-            string downloadsPath = userprofile + @"\Downloads\";
-            System.Diagnostics.Process.Start(fileManger, downloadsPath);
-        }
-
-        private void OpenMyComputer(object sender, RoutedEventArgs e)
-        {
-            System.Diagnostics.Process.Start(fileManger, "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}");
-        }
-
-        private void OpenUserFolder(object sender, RoutedEventArgs e)
-        {
-            System.Diagnostics.Process.Start(fileManger, System.Environment.GetEnvironmentVariable("USERPROFILE"));
-        }
-
-        private void OpenProgramFiles(object sender, RoutedEventArgs e)
-        {
-            System.Diagnostics.Process.Start(fileManger, System.Environment.GetEnvironmentVariable("ProgramFiles"));
-        }
-
-        private void OpenRecycleBin(object sender, RoutedEventArgs e)
+        /*private void OpenRecycleBin(object sender, RoutedEventArgs e)
         {
             System.Diagnostics.Process.Start(fileManger, "::{645FF040-5081-101B-9F08-00AA002F954E}");
-        }
+        }*/
 
         private void OpenControlPanel(object sender, RoutedEventArgs e)
         {
@@ -416,12 +359,6 @@ namespace CairoDesktop
         private void SysSleep(object sender, RoutedEventArgs e)
         {
             NativeMethods.Sleep();
-        }
-
-        private void InitCairoSettingsWindow(object sender, RoutedEventArgs e)
-        {
-            CairoSettingsWindow window = new CairoSettingsWindow();
-            window.Show();
         }
 
         private void InitAppGrabberWindow(object sender, RoutedEventArgs e)

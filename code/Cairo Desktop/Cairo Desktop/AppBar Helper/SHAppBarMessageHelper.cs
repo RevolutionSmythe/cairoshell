@@ -42,7 +42,7 @@ namespace SHAppBarMessage1.Common
             NativeMethods.APPBARDATA abd = new NativeMethods.APPBARDATA();
             abd.cbSize = Marshal.SizeOf(abd);
             abd.hWnd = handle;
-            abd.uEdge = (int)NativeMethods.ABEdge.ABE_BOTTOM;
+            abd.uEdge = (int)NativeMethods.ABEdge.ABE_TOP;
 
             if (abd.uEdge == (int)NativeMethods.ABEdge.ABE_LEFT || abd.uEdge == (int)NativeMethods.ABEdge.ABE_RIGHT)
             {

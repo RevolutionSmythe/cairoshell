@@ -16,14 +16,6 @@ namespace CairoDesktop
 		public QuickLaunchButton()
 		{
 			this.InitializeComponent();
-			// Insert code required on object creation below this point.
-            // Sets the Theme for Cairo
-            string theme = Properties.Settings.Default.CairoTheme;
-            if (theme != "Cairo.xaml")
-            {
-                ResourceDictionary CairoDictionary = (ResourceDictionary)XamlReader.Load(System.Xml.XmlReader.Create(AppDomain.CurrentDomain.BaseDirectory + theme));
-                this.Resources.MergedDictionaries[0] = CairoDictionary;
-            }
 		}
 
 private void LaunchProgram(object sender, RoutedEventArgs e)

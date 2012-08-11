@@ -5,6 +5,8 @@
         <GradientStop Color="#8F1A4DFF" Offset="0.0" />
         <GradientStop Color="#DF338FFF" Offset="1.0" />
     </LinearGradientBrush>
+    <SolidColorBrush Color="#FF007179" x:Key="CairoBackgroundColor"/>
+    <SolidColorBrush Color="#66AAAF" x:Key="CairoSecondaryBackgroundColor"/>
     <Style TargetType="{x:Type Control}">
         <Setter Property="Template">
             <Setter.Value>
@@ -302,7 +304,7 @@
                                     Value="True" />
                             </MultiTrigger.Conditions>
                             <Setter Property="Background"
-                                TargetName="Border" Value="{StaticResource CairoMenuItemHoverGradient}"/>
+                                TargetName="Border" Value="{StaticResource CairoSecondaryBackgroundColor}"/>
                         </MultiTrigger>
                         <!-- Role = SubMenuItem : this is a child menu item which has children-->
                         <Trigger Property="Role"
@@ -659,23 +661,33 @@
                                     <Style TargetType="{x:Type Border}">
                                         <Setter Property="Background">
                                             <Setter.Value>
-                                                <LinearGradientBrush StartPoint="0.5,0"
+                                                <SolidColorBrush Color="#FFFEFEFE"/>
+                                                <!--<LinearGradientBrush StartPoint="0.5,0"
                                                             EndPoint="0.5,1">
                                                     <GradientStop Color="#bf1a1a1a"
                                                                 Offset="0" />
                                                     <GradientStop Color="#cF000000"
                                                                 Offset="1" />
+                                                </LinearGradientBrush>-->
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Setter Property="BorderBrush">
+                                            <Setter.Value>
+                                                <LinearGradientBrush StartPoint="0.5,0"
+                                                                        EndPoint="0.5,1">
+                                                    <GradientStop Color="#bf1a1a1a"
+                                                                            Offset="0" />
+                                                    <GradientStop Color="#cF000000"
+                                                                            Offset="1" />
                                                 </LinearGradientBrush>
                                             </Setter.Value>
                                         </Setter>
-                                        <Setter Property="BorderBrush"
-                                                    Value="#FF5b5b5b" />
                                         <Setter Property="BorderThickness"
-                                                    Value="1" />
-                                        <Setter Property="CornerRadius"
-                                                    Value="5" />
-                                        <Setter Property="Padding"
-                                                    Value="0,5,0,5" />
+                                                        Value="1" />
+                                            <Setter Property="CornerRadius"
+                                                        Value="0" />
+                                            <Setter Property="Padding"
+                                                        Value="0,5,0,5" />
                                     </Style>
                                 </Border.Style>
                                 <Grid x:Name="SubMenu"
@@ -1181,49 +1193,6 @@
         <Setter Property="BorderThickness" Value="1,1,1,1"/>
         <Setter Property="CornerRadius" Value="5,5,5,5"/>
         <Setter Property="Padding" Value="0,5,0,5"/>
-    </Style>
-    <Style x:Key="CairoTaskListButtonStyle"
-        TargetType="{x:Type Button}">
-        <Setter Property="OverridesDefaultStyle"
-            Value="true" />
-        <Setter Property="FontFamily"
-            Value="Segoe UI" />
-        <Setter Property="FontSize"
-            Value="12" />
-        <Setter Property="Foreground"
-            Value="White" />
-        <Setter Property="Width"
-            Value="176" />
-        <Setter Property="Height"
-            Value="28" />
-        <Setter Property="VerticalAlignment"
-            Value="Center" />
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="{x:Type Button}">
-                    <Border x:Name="Border"
-                        BorderThickness="0"
-                            Background="Transparent"
-                        Margin="0,0,0,0">
-                        <ContentPresenter Margin="5,0,5,0"
-                            HorizontalAlignment="Left"
-                            VerticalAlignment="Center" />
-                    </Border>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsMouseOver"
-                            Value="true">
-                            <Setter Property="Background"
-                                TargetName="Border" Value="{StaticResource CairoMenuItemHoverGradient}"/>
-                        </Trigger>
-                        <Trigger Property="IsPressed"
-                            Value="true">
-                            <Setter Property="Background"
-                                TargetName="Border" Value="{StaticResource CairoMenuItemHoverGradient}"/>
-                        </Trigger>
-                    </ControlTemplate.Triggers>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
     </Style>
     <!-- Style for list button on taskbar -->
     <Style x:Key="CairoTaskbarButtonList"

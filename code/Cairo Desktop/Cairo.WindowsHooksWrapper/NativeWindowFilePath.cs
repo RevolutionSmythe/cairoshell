@@ -35,7 +35,7 @@ namespace Cairo.WindowsHooksWrapper
         /// <param name="nSize"></param>
         /// <returns></returns>
         [DllImport ("psapi.dll")] //Supported under Windows Vista and Windows Server 2008.
-        static extern uint GetModuleFileNameEx (IntPtr hProcess, IntPtr hModule, [Out] StringBuilder lpBaseName,
+        static extern uint GetModuleFileNameEx (IntPtr hProcess, IntPtr hModule, out StringBuilder lpBaseName,
          [In] [MarshalAs (UnmanagedType.U4)] int nSize);
 
 
@@ -49,6 +49,10 @@ namespace Cairo.WindowsHooksWrapper
         [DllImport ("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         private static extern int GetWindowThreadProcessId (IntPtr handle, out uint processId);
 
+        [DllImport("kernel32.dll", SetLastError = true)]
+        static extern bool QueryFullProcessImageNameW(IntPtr hProcess, uint dwFlags,
+            [Out, MarshalAs(UnmanagedType.LPTStr)] StringBuilder lpExeName,
+            ref uint lpdwSize);
 
         /// <summary>
         /// Retrieves the Path of a running process.
@@ -68,6 +72,102 @@ namespace Cairo.WindowsHooksWrapper
             {
                 return ex.Message.ToString ();
             }
+        }
+
+        [DllImport("kernel32.dll")]
+        static extern uint GetFileSize(IntPtr hFile, IntPtr lpFileSizeHigh);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        public static extern IntPtr CreateFileMapping(
+            IntPtr hFile,
+            IntPtr lpFileMappingAttributes,
+            FileMapProtection flProtect,
+            uint dwMaximumSizeHigh,
+            uint dwMaximumSizeLow,
+            [MarshalAs(UnmanagedType.LPTStr)]string lpName);
+
+        [Flags]
+        public enum FileMapProtection : uint
+        {
+            PageReadonly = 0x02,
+            PageReadWrite = 0x04,
+            PageWriteCopy = 0x08,
+            PageExecuteRead = 0x20,
+            PageExecuteReadWrite = 0x40,
+            SectionCommit = 0x8000000,
+            SectionImage = 0x1000000,
+            SectionNoCache = 0x10000000,
+            SectionReserve = 0x4000000,
+        }
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        static extern IntPtr MapViewOfFile(
+            IntPtr hFileMappingObject,
+            FileMapAccess dwDesiredAccess,
+            uint dwFileOffsetHigh,
+            uint dwFileOffsetLow,
+            uint dwNumberOfBytesToMap);
+
+        [Flags]
+        public enum FileMapAccess : uint
+        {
+            FileMapCopy = 0x0001,
+            FileMapWrite = 0x0002,
+            FileMapRead = 0x0004,
+            FileMapAllAccess = 0x001f,
+            fileMapExecute = 0x0020,
+        }
+
+        [DllImport("psapi.dll", SetLastError = true)]
+        public static extern uint GetMappedFileName(IntPtr m_hProcess, IntPtr lpv, StringBuilder
+                lpFilename, uint nSize);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        static extern bool UnmapViewOfFile(IntPtr lpBaseAddress);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool CloseHandle(IntPtr hObject);
+
+        public static string GetFileNameFromHandle(IntPtr FileHandle)
+        {
+            string fileName = String.Empty;
+            IntPtr fileMap = IntPtr.Zero, fileSizeHi = IntPtr.Zero;
+            UInt32 fileSizeLo = 0;
+
+            fileSizeLo = GetFileSize(FileHandle, fileSizeHi);
+
+            if (fileSizeLo == 0)
+            {
+                // cannot map an 0 byte file
+                return "Empty file.";
+            }
+
+            fileMap = CreateFileMapping(FileHandle, IntPtr.Zero, FileMapProtection.PageReadonly, 0, 1, null);
+
+            if (fileMap != IntPtr.Zero)
+            {
+                IntPtr pMem = MapViewOfFile(fileMap, FileMapAccess.FileMapRead, 0, 0, 1);
+                if (pMem != IntPtr.Zero)
+                {
+                    StringBuilder fn = new StringBuilder(250);
+                    GetMappedFileName(System.Diagnostics.Process.GetCurrentProcess().Handle, pMem, fn, 250);
+                    if (fn.Length > 0)
+                    {
+                        UnmapViewOfFile(pMem);
+                        CloseHandle(FileHandle);
+                        return fn.ToString();
+                    }
+                    else
+                    {
+                        UnmapViewOfFile(pMem);
+                        CloseHandle(FileHandle);
+                        return "Empty filename.";
+                    }
+                }
+            }
+
+            return "Empty filemap handle.";
         }
 
         /// <summary>

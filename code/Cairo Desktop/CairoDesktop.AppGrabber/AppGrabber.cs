@@ -19,7 +19,6 @@ namespace CairoDesktop.AppGrabber
         private static DependencyProperty programsListProperty = DependencyProperty.Register("ProgramsList", typeof(List<ApplicationInfo>), typeof(AppGrabber), new PropertyMetadata(new List<ApplicationInfo>()));
         
         private static AppGrabber _instance = new AppGrabber();
-        private List<ApplicationInfo> _programsList;
 
         public static AppGrabber Instance
         {

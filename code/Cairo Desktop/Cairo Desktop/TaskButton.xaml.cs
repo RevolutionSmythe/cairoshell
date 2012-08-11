@@ -33,19 +33,28 @@ namespace CairoDesktop
 		public TaskButton()
 		{
 			this.InitializeComponent();
-			// Insert code required on object creation below this point.
-            // Sets the Theme for Cairo
-            string theme = Properties.Settings.Default.CairoTheme;
-            if (theme != "Cairo.xaml")
-            {
-                ResourceDictionary CairoDictionary = (ResourceDictionary)XamlReader.Load(System.Xml.XmlReader.Create(AppDomain.CurrentDomain.BaseDirectory + theme));
-                this.Resources.MergedDictionaries[0] = CairoDictionary;
-            }
-            
 		}
 
         private void btnClick(object sender, RoutedEventArgs e)
         {
+            var windowObject = this.DataContext as ExtendedSystemWindow;
+            if (windowObject != null)
+            {
+                if (windowObject.WindowState == System.Windows.Forms.FormWindowState.Minimized)
+                {
+                    if (windowObject.Enabled)
+                        windowObject.WindowState = System.Windows.Forms.FormWindowState.Maximized;
+                    else
+                        windowObject.WindowState = System.Windows.Forms.FormWindowState.Normal;
+                    windowObject.Enabled = true;
+                    windowObject.BringWindowToFront();
+                }
+                else
+                {
+                    windowObject.Enabled = windowObject.WindowState == System.Windows.Forms.FormWindowState.Maximized;
+                    windowObject.WindowState = System.Windows.Forms.FormWindowState.Minimized;
+                }
+            }
         }
 
         private void btn_MouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -97,40 +106,16 @@ namespace CairoDesktop
                 windowObject.Process.Kill ();//Kill it
         }
 
-        private void Hide_Click (object sender, RoutedEventArgs e)
-        {
-        }
-
         private void Add_To_Menu_Click (object sender, RoutedEventArgs e)
         {
-            var windowObject = this.DataContext as ExtendedSystemWindow;
-            if (windowObject != null)
-            {
-                AppGrabber.ApplicationInfo info = new AppGrabber.ApplicationInfo (windowObject.Process.MainWindowTitle, windowObject.Process.MainModule.FileName, null);
-                info.Icon = info.GetAssociatedIcon ();
-                AppGrabber.Category c = AppGrabber.AppGrabber.Instance.CategoryList.GetCategory ("Uncategorized");
-                c.Add (info);
-                AppGrabber.AppGrabber.Instance.CategoryList.Remove (c);
-                AppGrabber.AppGrabber.Instance.CategoryList.Add (c);
-            }
         }
 
-        private void btn_MouseDown_1(object sender, MouseButtonEventArgs e)
+        private void Remove_From_Menu_Click(object sender, RoutedEventArgs e)
         {
-            var windowObject = this.DataContext as ExtendedSystemWindow;
-            if (windowObject != null)
-            {
-                if (windowObject.WindowState == System.Windows.Forms.FormWindowState.Minimized)
-                {
-                    if (windowObject.Enabled)
-                        windowObject.WindowState = System.Windows.Forms.FormWindowState.Maximized;
-                    else
-                        windowObject.WindowState = System.Windows.Forms.FormWindowState.Normal;
-                    windowObject.Enabled = true;
-                }
-                windowObject.TopMost = true;
-                windowObject.TopMost = false;
-            }
+        }
+
+        private void OpenNewInstance_Click_1(object sender, RoutedEventArgs e)
+        {
         }
 	}
 }

@@ -79,11 +79,15 @@
     <PlatformTarget>x86</PlatformTarget>
     <OutputPath>bin\x86\Release\</OutputPath>
   </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationManifest>Resources\CairoDesktop.manifest</ApplicationManifest>
+  </PropertyGroup>
   <ItemGroup>
     <Compile Include="AppBar Helper\IconExtractor.cs" />
     <Compile Include="AppBar Helper\TaskbarPinnedItems.cs" />
     <Compile Include="WindowsTasks\ApplicationWindow.cs" />
     <Compile Include="WindowsTasks\ICairoNotifyPropertyChanged.cs" />
+    <Compile Include="WindowsTasks\IconFinder.cs" />
     <Compile Include="WindowsTasks\NativeWindowEx.cs" />
     <Compile Include="WindowsTasks\NotifyPropertyChangedAspect.cs" />
     <Compile Include="WindowsTasks\WindowsTasksService.cs" />
@@ -103,9 +107,8 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\Dependencies\PostSharp\PostSharp.Laos.dll</HintPath>
     </Reference>
-    <Reference Include="PostSharp.Public, Version=1.0.11.424, Culture=neutral, PublicKeyToken=b13fd38b8f9c99d7, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\Build\Debug\PostSharp.Public.dll</HintPath>
+    <Reference Include="PostSharp.Public">
+      <HintPath>..\Build\PostSharp.Public.dll</HintPath>
     </Reference>
     <Reference Include="SearchAPILib, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -129,9 +132,8 @@
     <Reference Include="UIAutomationProvider">
       <RequiredTargetFramework>3.0</RequiredTargetFramework>
     </Reference>
-    <Reference Include="UnhandledExceptionFilter, Version=1.1.3277.28032, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\Build\Debug\UnhandledExceptionFilter.dll</HintPath>
+    <Reference Include="UnhandledExceptionFilter">
+      <HintPath>..\Build\UnhandledExceptionFilter.dll</HintPath>
     </Reference>
     <Reference Include="WindowsBase">
       <RequiredTargetFramework>3.0</RequiredTargetFramework>
@@ -165,12 +167,6 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
-    <Compile Include="Settings.cs" />
-    <Compile Include="Properties\Settings.Designer.cs">
-      <DependentUpon>Settings.settings</DependentUpon>
-      <AutoGen>True</AutoGen>
-      <DesignTimeSharedInput>True</DesignTimeSharedInput>
-    </Compile>
     <Compile Include="Sound\SoundAPI.cs" />
     <Compile Include="SupportingClasses\KeyboardRegistration.cs" />
     <Compile Include="SystemTray.xaml.cs">
@@ -196,22 +192,13 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
-    <Page Include="CairoSettingsWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
     <Page Include="Cairo.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
-    <None Include="Properties\Settings.settings">
-      <Generator>SettingsSingleFileGenerator</Generator>
-      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
-    </None>
+    <None Include="Resources\CairoDesktop.manifest" />
     <None Include="White.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -237,25 +224,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
-    <Page Include="MenuBarShadow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
     <Page Include="StacksContainer.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="Taskbar.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="TaskListButton.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
       <Generator>MSBuild:Compile</Generator>
@@ -275,9 +244,6 @@
     <Compile Include="CairoMessage.xaml.cs">
       <DependentUpon>CairoMessage.xaml</DependentUpon>
     </Compile>
-    <Compile Include="CairoSettingsWindow.xaml.cs">
-      <DependentUpon>CairoSettingsWindow.xaml</DependentUpon>
-    </Compile>
     <Compile Include="DesktopIcons.xaml.cs">
       <DependentUpon>DesktopIcons.xaml</DependentUpon>
     </Compile>
@@ -286,9 +252,6 @@
       <DependentUpon>Desktop.xaml</DependentUpon>
     </Compile>
     <Compile Include="DragDropHandler.cs" />
-    <Compile Include="MenuBarShadow.xaml.cs">
-      <DependentUpon>MenuBarShadow.xaml</DependentUpon>
-    </Compile>
     <Compile Include="AppBar Helper\NativeMethods.cs" />
     <Compile Include="StacksContainer.xaml.cs">
       <DependentUpon>StacksContainer.xaml</DependentUpon>
@@ -303,21 +266,10 @@
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Properties\Resources.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>Resources.resx</DependentUpon>
-    </Compile>
     <Compile Include="AppBar Helper\SHAppBarMessageHelper.cs" />
     <Compile Include="Startup.cs" />
     <Compile Include="SupportingClasses\SystemFile.cs" />
     <Compile Include="SupportingClasses\TaskbuttonStyleConverter.cs" />
-    <Compile Include="Taskbar.xaml.cs">
-      <DependentUpon>Taskbar.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="TaskListButton.xaml.cs">
-      <DependentUpon>TaskListButton.xaml</DependentUpon>
-    </Compile>
     <Compile Include="ThreadSafeObservableCollection.cs" />
     <Compile Include="SupportingClasses\TrayIcon.cs" />
     <Compile Include="VistaSearchProviderHelper.cs" />
@@ -437,6 +389,10 @@
     <Content Include="SearchAPILib.dll" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Cairo Explorer\Cairo Explorer.csproj">
+      <Project>{68a28672-ff2f-4e6d-9fd6-b3dee652851d}</Project>
+      <Name>Cairo Explorer</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Cairo.WindowsHooksWrapper\Cairo.WindowsHooksWrapper.csproj">
       <Project>{79B5DDAC-5102-4B11-BFA1-B16D6F6FE661}</Project>
       <Name>Cairo.WindowsHooksWrapper</Name>

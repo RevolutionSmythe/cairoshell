@@ -35,7 +35,7 @@ namespace CairoDesktop.AppGrabber
                     bs = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(icon.Handle, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 bs = GetDefaultIcon();
             }
@@ -57,7 +57,7 @@ namespace CairoDesktop.AppGrabber
                 {
                     bs = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(hIcon, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     bs = GetDefaultIcon();
                 }
@@ -98,7 +98,7 @@ namespace CairoDesktop.AppGrabber
                 img.UriSource = new Uri("resources\\folderIcon.png", UriKind.RelativeOrAbsolute);
                 img.EndInit();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return GenerateEmptyBitmapSource();
             }

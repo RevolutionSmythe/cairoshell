@@ -6,7 +6,7 @@ using WMPLib;
 
 namespace PreviewControls
 {
-    public class MediaPreview:AxWMPLib.AxWindowsMediaPlayer, IPreviewControl
+    public class MediaPreview : AxWMPLib.AxWindowsMediaPlayer, IPreviewControl
     {
         #region IPreview Members
 

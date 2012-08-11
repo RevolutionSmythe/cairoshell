@@ -29,13 +29,6 @@ namespace CairoDesktop {
         public StacksContainer() 
         {
             InitializeComponent();
-            // Sets the Theme for Cairo
-            string theme = Properties.Settings.Default.CairoTheme;
-            if (theme != "Cairo.xaml")
-            {
-                ResourceDictionary CairoDictionary = (ResourceDictionary)XamlReader.Load(System.Xml.XmlReader.Create(AppDomain.CurrentDomain.BaseDirectory + theme));
-                this.Resources.MergedDictionaries[0] = CairoDictionary;
-            }
             try 
             {
                 this.deserialize();
@@ -43,29 +36,6 @@ namespace CairoDesktop {
             catch {}
 
             Locations.CollectionChanged += new NotifyCollectionChangedEventHandler(locations_CollectionChanged);
-
-            // Add some default folders on FirstRun
-            if (Properties.Settings.Default.IsFirstRun == true) 
-            {
-                // Check for Documents Folder
-                String myDocsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-                if (Directory.Exists(myDocsPath)) {
-                    SystemDirectory myDocsSysDir = new SystemDirectory(myDocsPath, Dispatcher.CurrentDispatcher);
-                    // Don't duplicate defaults
-                    if (!Locations.Contains(myDocsSysDir)) {
-                        Locations.Add(myDocsSysDir);
-                    }
-                }
-                // Check for Downloads folder
-                String downloadsPath = System.Environment.GetEnvironmentVariable("USERPROFILE") +@"\Downloads";
-                if (Directory.Exists(downloadsPath)) {
-                    SystemDirectory downloadsSysDir = new SystemDirectory(downloadsPath, Dispatcher.CurrentDispatcher);
-                    // Don't duplicate defaults
-                    if (!Locations.Contains(downloadsSysDir)) {
-                        Locations.Add(downloadsSysDir);
-                    }
-                }
-            }
         }
 
         public InvokingObservableCollection<SystemDirectory> Locations
@@ -236,10 +206,8 @@ namespace CairoDesktop {
         /// <param name="directoryPath">Directory to open.</param>
         private void openDir(String directoryPath) 
         {
-            System.Diagnostics.Process prc = new System.Diagnostics.Process();
-            prc.StartInfo.FileName = Environment.ExpandEnvironmentVariables(Properties.Settings.Default.FileManager);
-            prc.StartInfo.Arguments = directoryPath;
-            prc.Start();
+            CairoExplorer.CairoExplorerWindow window = new CairoExplorer.CairoExplorerWindow(directoryPath);
+            window.Show();
         }
     }
 }
