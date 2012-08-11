@@ -17,13 +17,12 @@ using System.Windows.Navigation;
 //using System.Windows.Shapes;
 using System.Runtime.InteropServices;
 using System.Windows.Interop;
-using GlassLib;
 using Microsoft.Win32;
 
 namespace CairoExplorer
 {
     public delegate void AsyncDirectorySizeCallBack(WrapperFileSystemInfo f, double size, object param);
-    public delegate void RoutedEventHandlerListView(object sender, RoutedEventArgs e, ListView view);
+    public delegate void RoutedEventHandlerListView(object sender, RoutedEventArgs e, FrameworkElement view);
     /// <summary>
     /// Interaction logic for CairoExplorerWindow.xaml
     /// </summary>
@@ -51,7 +50,7 @@ namespace CairoExplorer
         private bool _sortingBySort = false;
         private string[] _specialPaths = new string[7] { "Favorites", "Home", "//", "Desktop", "Computer", "My Computer", "Network" };
 
-        private ObservableCollection<WrapperFileSystemInfo> _fileSysList = new ObservableCollection<WrapperFileSystemInfo>();
+        private List<WrapperFileSystemInfo> _fileSysList = new List<WrapperFileSystemInfo>();
 
         #endregion
 
@@ -69,6 +68,7 @@ namespace CairoExplorer
         {
             NoRebuild,
             NoRebuildPathChanged,
+            NoRebuildPathAddition,
             RebuildAllFlows
         }
 
@@ -103,15 +103,14 @@ namespace CairoExplorer
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            foreach (var i in DisplaySidebarDirectoryTreeView("//"))
-                DriveTreeView.Items.Add(i);
+            //foreach (var i in DisplaySidebarDirectoryTreeView("//"))
+            //    DriveTreeView.Items.Add(i);
 
             PopulateDevices();
 
             PopulateFavorites();
 
             SetUpColumnView();
-            SetUpCoverFlowView();
             SetUpThumbnailView();
             PushNotification(Notifications.ChangingFolder, _currentWindowPath);
             ActivateTopBarIcons();
@@ -123,13 +122,16 @@ namespace CairoExplorer
 
 
             AddAutoHideScrollViewer(ColumnView);
-            AddAutoHideScrollViewer(CoverFlowView);
         }
 
         private void SetUpThumbnailView()
         {
+            AddAutoHideScrollViewer(ThumbnailDock);
+            ThumbnailScroll.ScrollChanged += new ScrollChangedEventHandler(ThumbnailScroll_ScrollChanged);
             if(Settings.DetailedThumbnailView)
-                thumbSize.Minimum = 70;
+                ThumbnailSize.Minimum = 70;
+            else
+                ThumbnailSize.Minimum = 7;
         }
 
         #region Fade In Animation
@@ -198,15 +200,15 @@ namespace CairoExplorer
         private void SetUpColumnView()
         {
             ColumnView.Visibility = System.Windows.Visibility.Visible;
-            ColumnView.ItemContainerGenerator.StatusChanged += new EventHandler(ColumnView_ContainerStatusChanged);
             ColumnView.ContextMenu = new ContextMenu();
+            ColumnView.ItemContainerGenerator.StatusChanged += new EventHandler(ColumnView_ContainerStatusChanged);
 
             var gridView = ColumnView.View as GridView;
             //Add a few extra spaces just to add some additional space to the grid (it looks way better)
-            AddColumn(gridView, "Name  ", "NameClean", true, "Icon");
-            AddColumn(gridView, "Date Modified  ", "Info.DateModified");
-            AddColumn(gridView, "Type  ", "TypeClean");
-            AddColumn(gridView, "Size  ", "Size");
+            AddColumn(gridView, "X items, details view  ", new TextBindingInfo() { Bind = "Info.NameWithoutExtension", FontSize = 16 }, 350, true, 32, "Icon", new TextBindingInfo() { Bind = "Type.Extension", FontSize = 16, TextColor = new SolidColorBrush(Colors.Gray) });
+            AddColumn(gridView, "date modified  ", new TextBindingInfo() { Bind = "Info.DateModifiedString", FontSize = 16 });
+            AddColumn(gridView, "type  ", new TextBindingInfo() { Bind = "Type.BaseExtension", FontSize = 16 });
+            AddColumn(gridView, "size  ", new TextBindingInfo() { Bind = "Size", FontSize = 16 }, 80);
 
             List<GridViewColumnHeader> columns = GetVisualChildCollection<GridViewColumnHeader>(ColumnView);
             foreach (GridViewColumnHeader col in columns)
@@ -214,36 +216,26 @@ namespace CairoExplorer
                 if (col.Column != null)
                 {
                     col.Width = Double.NaN;
+                    col.Height = 28;
                     col.HorizontalContentAlignment = System.Windows.HorizontalAlignment.Left;
+                    col.FontStyle = FontStyles.Italic;
+                    col.FontSize = 18;
+                    col.Foreground = new SolidColorBrush(Colors.Gray);
                 }
             }
         }
 
-        private void SetUpCoverFlowView()
+        private class TextBindingInfo
         {
-            CoverFlowView.Visibility = System.Windows.Visibility.Collapsed;
-            CoverFlowView.ItemContainerGenerator.StatusChanged += new EventHandler(CoverFlowView_ContainerStatusChanged);
-            CoverFlowView.ContextMenu = new ContextMenu();
-
-            var gridView = CoverFlowView.View as GridView;
-            //Add a few extra spaces just to add some additional space to the grid (it looks way better)
-            AddColumn(gridView, "Name  ", "NameClean", true, "Icon");
-            AddColumn(gridView, "Date Modified  ", "Info.DateModified");
-            AddColumn(gridView, "Type  ", "TypeClean");
-            AddColumn(gridView, "Size  ", "Size");
-
-            List<GridViewColumnHeader> columns = GetVisualChildCollection<GridViewColumnHeader>(CoverFlowView);
-            foreach (GridViewColumnHeader col in columns)
-            {
-                if (col.Column != null)
-                {
-                    col.Width = Double.NaN;
-                    col.HorizontalContentAlignment = System.Windows.HorizontalAlignment.Left;
-                }
-            }
+            public string Bind;
+            public FontWeight FontWeight = FontWeights.Normal;
+            public double FontSize = -1;
+            public FontStretch FontStretch = FontStretches.Normal;
+            public Brush TextColor = null;
+            public FontStyle FontStyle = FontStyles.Normal;
         }
 
-        private void AddColumn(GridView gridView, string header, string binding, bool image = false, string imageBinding = "", double width = 0)
+        private void AddColumn(GridView gridView, string header, TextBindingInfo bindingInfo, double width = 0, bool image = false, double imageWidth = 0, string imageBinding = "", TextBindingInfo secondaryBinding = null)
         {
             ExtraGridViewColumn gvc = new ExtraGridViewColumn();
             gvc.Header = header;
@@ -252,23 +244,50 @@ namespace CairoExplorer
             dp.SetValue(DockPanel.LastChildFillProperty, true);
             if (image)
             {
-                double iconSize = 16.0;
                 FrameworkElementFactory icon = new FrameworkElementFactory(typeof(Image));
                 icon.SetBinding(Image.SourceProperty, new Binding(imageBinding));
-                icon.SetValue(Image.WidthProperty, iconSize);
-                icon.SetValue(Image.HeightProperty, iconSize);
-                icon.SetValue(Image.MarginProperty, new Thickness(15, 0, 5, 0));
+                icon.SetValue(Image.WidthProperty, imageWidth);
+                icon.SetValue(Image.HeightProperty, imageWidth);
+                icon.SetValue(Image.MarginProperty, new Thickness(0, 0, 5, 0));
                 icon.SetValue(Grid.ColumnProperty, 0);
                 dp.AppendChild(icon);
             }
+
             FrameworkElementFactory tb = new FrameworkElementFactory(typeof(TextBlock));
-            tb.SetBinding(TextBlock.TextProperty, new Binding(binding));
+            tb.SetBinding(TextBlock.TextProperty, new Binding(bindingInfo.Bind));
+            if (bindingInfo.FontSize > 0)
+                tb.SetValue(TextBlock.FontSizeProperty, bindingInfo.FontSize);
+            tb.SetValue(TextBlock.FontWeightProperty, bindingInfo.FontWeight);
+            tb.SetValue(TextBlock.FontStretchProperty, bindingInfo.FontStretch);
+            tb.SetValue(TextBlock.FontStyleProperty, bindingInfo.FontStyle);
+            if(bindingInfo.TextColor != null)
+                tb.SetValue(TextBlock.ForegroundProperty, bindingInfo.TextColor);
+            tb.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
             tb.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
             tb.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Left);
+            tb.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
             tb.SetValue(TextBlock.TextAlignmentProperty, TextAlignment.Left);
             tb.SetValue(Grid.ColumnProperty, 1);
-            DataTemplate dt = new DataTemplate();
             dp.AppendChild(tb);
+            if (secondaryBinding != null)
+            {
+                tb = new FrameworkElementFactory(typeof(TextBlock));
+                tb.SetBinding(TextBlock.TextProperty, new Binding(secondaryBinding.Bind));
+                if(secondaryBinding.FontSize > 0)
+                    tb.SetValue(TextBlock.FontSizeProperty, secondaryBinding.FontSize);
+                tb.SetValue(TextBlock.FontWeightProperty, secondaryBinding.FontWeight);
+                tb.SetValue(TextBlock.FontStretchProperty, secondaryBinding.FontStretch);
+                tb.SetValue(TextBlock.FontStyleProperty, secondaryBinding.FontStyle);
+                if (secondaryBinding.TextColor != null)
+                    tb.SetValue(TextBlock.ForegroundProperty, secondaryBinding.TextColor);
+                tb.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
+                tb.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Left);
+                tb.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+                tb.SetValue(TextBlock.TextAlignmentProperty, TextAlignment.Left);
+                tb.SetValue(Grid.ColumnProperty, 1);
+                dp.AppendChild(tb);
+            }
+            DataTemplate dt = new DataTemplate();
             dt.VisualTree = dp;
             gvc.CellTemplate = dt;
 
@@ -281,23 +300,55 @@ namespace CairoExplorer
 
         #region Devices Sidebar
 
+        private bool _hasAddedDeviceStatusChangedEvent = false;
         private void PopulateDevices()
         {
-            DriveInfo[] allDrives = DriveInfo.GetDrives();
-            foreach (DriveInfo d in allDrives)
-                AddDeviceToSidebar(d);
+            #region Factory
+            FrameworkElementFactory dp = new FrameworkElementFactory(typeof(DockPanel));
+            dp.SetValue(DockPanel.LastChildFillProperty, true);
+            FrameworkElementFactory tb = new FrameworkElementFactory(typeof(TextBlock));
+            tb.SetBinding(TextBlock.TextProperty, new Binding("Name"));
+            tb.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
+            tb.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Left);
+            tb.SetValue(TextBlock.TextAlignmentProperty, TextAlignment.Left);
+            tb.SetValue(TextBlock.MarginProperty, new Thickness(78, 0, 0, 0));
+            DataTemplate dt = new DataTemplate();
+            dp.AppendChild(tb);
+            dt.VisualTree = dp;
+            DeviceList.ItemTemplate = dt;
+            if (!_hasAddedDeviceStatusChangedEvent)
+            {
+                _hasAddedDeviceStatusChangedEvent = true;
+                DeviceList.ItemContainerGenerator.StatusChanged += new EventHandler(DeviceItemContainerGenerator_StatusChanged);
+            }
+            #endregion
+
+            DeviceList.ItemsSource = new ObservableCollection<DriveInfo>(DriveInfo.GetDrives());
         }
 
-        private void AddDeviceToSidebar(DriveInfo f)
+        void DeviceItemContainerGenerator_StatusChanged(object sender, EventArgs e)
         {
-            ListViewItem item = new ListViewItem() { Content = _blankSpace + f.Name };
-            item.Selected += new RoutedEventHandler(device_Selected);
-            SetFont(item);
-            DeviceList.Items.Add(item);
+            ItemContainerGenerator gen = sender as ItemContainerGenerator;
+            if (gen.Status == System.Windows.Controls.Primitives.GeneratorStatus.ContainersGenerated)
+            {
+                for (int i = 0; i < DeviceList.Items.Count; i++)
+                {
+                    ListViewItem item = gen.ContainerFromIndex(i) as ListViewItem;
+                    if (item != null)
+                    {
+                        item.PreviewMouseLeftButtonDown += new MouseButtonEventHandler(Deviceitem_PreviewMouseLeftButtonDown);
+                        SetFont(item);
+                    }
+                }
+            }
         }
 
-        void device_Selected(object sender, RoutedEventArgs e)
+        private int _lastDevicePreviewMouseDown = 0;
+        void Deviceitem_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            if (_lastDevicePreviewMouseDown == e.Timestamp)
+                return;
+            _lastDevicePreviewMouseDown = e.Timestamp;
             ListViewItem item = (ListViewItem)sender;
             NavigateTo(item.Content.ToString());
         }
@@ -333,7 +384,7 @@ namespace CairoExplorer
         private void BuildFavoritesPanel()
         {
             #region Factory
-            FrameworkElementFactory dp = new FrameworkElementFactory(typeof(DockPanel));
+            /*FrameworkElementFactory dp = new FrameworkElementFactory(typeof(DockPanel));
             dp.SetValue(DockPanel.LastChildFillProperty, true);
             double iconSize = 16.0;
             FrameworkElementFactory icon = new FrameworkElementFactory(typeof(Image));
@@ -341,17 +392,17 @@ namespace CairoExplorer
             icon.SetValue(Image.WidthProperty, iconSize);
             icon.SetValue(Image.HeightProperty, iconSize);
             icon.SetValue(Image.MarginProperty, new Thickness(15, 0, 5, 0));
-            icon.SetValue(Grid.ColumnProperty, 0);
-            dp.AppendChild(icon);
+            dp.AppendChild(icon);*/
             FrameworkElementFactory tb = new FrameworkElementFactory(typeof(TextBlock));
-            tb.SetBinding(TextBlock.TextProperty, new Binding("SidebarName"));
+            tb.SetBinding(TextBlock.TextProperty, new Binding("Name"));
             tb.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
             tb.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Left);
             tb.SetValue(TextBlock.TextAlignmentProperty, TextAlignment.Left);
-            tb.SetValue(Grid.ColumnProperty, 1);
+            tb.SetValue(TextBlock.MarginProperty, new Thickness(15, 0, 0, 0));
             DataTemplate dt = new DataTemplate();
-            dp.AppendChild(tb);
-            dt.VisualTree = dp;
+            //dp.AppendChild(tb);
+            //dt.VisualTree = dp;
+            dt.VisualTree = tb;
             FavoritesList.ItemTemplate = dt;
             #endregion
             if (!_hasAddedFavoritesStatusChangedEvent)
@@ -372,6 +423,7 @@ namespace CairoExplorer
                     ListViewItem item = gen.ContainerFromIndex(i) as ListViewItem;
                     if (item != null)
                     {
+                        item.PreviewMouseLeftButtonDown -= new MouseButtonEventHandler(item_PreviewMouseLeftButtonDown);
                         item.PreviewMouseLeftButtonDown += new MouseButtonEventHandler(item_PreviewMouseLeftButtonDown);
                         SetFont(item);
                     }
@@ -385,7 +437,7 @@ namespace CairoExplorer
             FavoritesList.ContextMenu.Items.Add(createMenuItem("Remove Favorite", favoritesList_ContextMenu, FavoritesList));
         }
 
-        void favoritesList_ContextMenu(object sender, RoutedEventArgs e, ListView view)
+        void favoritesList_ContextMenu(object sender, RoutedEventArgs e, FrameworkElement view)
         {
             MenuItem menuItem = sender as MenuItem;
             switch (menuItem.Header.ToString())
@@ -420,17 +472,15 @@ namespace CairoExplorer
                 get;
                 set;
             }
-            public string SidebarName
-            {
-                get { return _blankSpace + Name; }
-            }
+
             public BitmapImage Icon
             {
                 get
                 {
-                    return new WrapperFileSystemInfo(new GenericFileSystemInfo(Path, Path, null)).Icon;
+                    return new WrapperFileSystemInfo(new GenericFileSystemInfo(Path, Path, DateTime.Now)).Icon;
                 }
             }
+
             public string Path
             {
                 get;
@@ -458,7 +508,7 @@ namespace CairoExplorer
                 _columnViewPath.Clear();
                 _columnViewPath.Add(f.Path);
             }
-            NavigateTo(f.Path, f.Name);
+            NavigateTo(f.Path, FlowRebuild.NoRebuildPathChanged, true, f.Name);
         }
 
         #endregion
@@ -524,15 +574,25 @@ namespace CairoExplorer
         private void SetFont(Control item)
         {
             item.Foreground = Settings.TextColorBrush;
-            item.FontFamily = new FontFamily("Calibri");
+            /*item.FontFamily = new FontFamily("Calibri");
             item.FontSize = 15;
             item.FontWeight = FontWeights.SemiBold;
-            item.FontStretch = FontStretches.UltraCondensed;
+            item.FontStretch = FontStretches.UltraCondensed;*/
+            item.FontSize = 20;
+            item.FontWeight = FontWeights.Thin;
+            item.FontStretch = FontStretches.ExtraExpanded;
             if (item is ListViewItem)
             {
-                item.Height = 24;
+                item.Height = 30;
                 item.Padding = new Thickness();
             }
+        }
+        private void SetFont(TextBlock item)
+        {
+            item.Foreground = Settings.TextColorBrush;
+            item.FontSize = 20;
+            item.FontWeight = FontWeights.Thin;
+            item.FontStretch = FontStretches.ExtraExpanded;
         }
 
         private DateTime _lastTime;
@@ -556,7 +616,7 @@ namespace CairoExplorer
                 return;
             previouslyExpanded.Add(item.Path);
 
-            item = GetRealSender(item, DriveTreeView.Items);
+            //item = GetRealSender(item, DriveTreeView.Items);
             List<DirectoryTreeViewItem> items = new List<DirectoryTreeViewItem>();
             foreach (DirectoryTreeViewItem i in item.Items)
             {
@@ -604,7 +664,7 @@ namespace CairoExplorer
                 return;
             string newPath = _backQueue.Pop();
             _forwardQueue.Push(_currentWindowPath);
-            NavigateTo(newPath, "", false);
+            NavigateTo(newPath, FlowRebuild.NoRebuildPathChanged, false);
         }
 
         private void ForwardButton_Click(object sender, RoutedEventArgs e)
@@ -618,7 +678,7 @@ namespace CairoExplorer
                 return;
             string newPath = _forwardQueue.Pop();
             _backQueue.Push(_currentWindowPath);
-            NavigateTo(newPath, "", false);
+            NavigateTo(newPath, FlowRebuild.NoRebuildPathChanged, false);
         }
 
         private void UpdateBackForwardQueues(string path)
@@ -644,7 +704,7 @@ namespace CairoExplorer
 
         #region Push Notification
 
-        private void PushNotification(Notifications notifications, string p)
+        private void PushNotification(Notifications notifications, string p, FlowRebuild flowRebuild = FlowRebuild.NoRebuildPathChanged)
         {
             if (notifications == Notifications.FolderChanged)
             {
@@ -653,11 +713,11 @@ namespace CairoExplorer
             }
             else if (notifications == Notifications.ChangingFolder)
             {
-                NavigateTo(p);
+                NavigateTo(p, flowRebuild);
             }
         }
 
-        private void NavigateTo(string path, string name = "", bool updateBackForwardQueues = true)
+        private void NavigateTo(string path, FlowRebuild flowRebuild = FlowRebuild.NoRebuildPathChanged, bool updateBackForwardQueues = true, string name = "")
         {
             if (updateBackForwardQueues)
                 UpdateBackForwardQueues(path);
@@ -669,8 +729,25 @@ namespace CairoExplorer
             _currentWindowName = name;
             SearchText.Text = path;
 
-            UpdateFlows(FlowRebuild.NoRebuildPathChanged);
-            CalcBottomBarStats();
+            lock (FavoritesList)
+            {
+                for (int ind = 0; ind < FavoritesList.Items.Count; ind++)
+                {
+                    ListViewItem it = FavoritesList.ItemContainerGenerator.ContainerFromIndex(ind) as ListViewItem;
+                    if (it != null)
+                        it.Foreground = Settings.TextColorBrush;
+                }
+                int i = 0;
+                var item = FavoritesList.ItemsSource.Cast<Favorite>().FirstOrDefault((f) => 
+                {
+                    i++; return Directory.Exists(f.Path) ? Path.GetFullPath(f.Path) == Path.GetFullPath(path) : f.Path == path;
+                });
+                if (item != null)
+                    (FavoritesList.ItemContainerGenerator.ContainerFromIndex(i-1) 
+                        as ListViewItem).Foreground = Settings.SelectedTextColorBrush;
+            }
+
+            UpdateFlows(flowRebuild);
             SetWindowTitleByFolder(name);
         }
 
@@ -684,15 +761,17 @@ namespace CairoExplorer
             {
                 if (_currentFlow != Flow.Thumbnail)
                 {
-                    thumbSize.Visibility = System.Windows.Visibility.Collapsed;
-                    thumbSizeText.Visibility = System.Windows.Visibility.Collapsed;
+                    ThumbnailSize.Visibility = System.Windows.Visibility.Collapsed;
+                    thumbnailSizeText.Visibility = System.Windows.Visibility.Collapsed;
                     ThumbnailScroll.Visibility = System.Windows.Visibility.Collapsed;
+                    ThumbnailHideNames.Visibility = System.Windows.Visibility.Collapsed;
                 }
                 else
                 {
-                    thumbSize.Visibility = System.Windows.Visibility.Visible;
-                    thumbSizeText.Visibility = System.Windows.Visibility.Visible;
+                    ThumbnailSize.Visibility = System.Windows.Visibility.Visible;
+                    thumbnailSizeText.Visibility = System.Windows.Visibility.Visible;
                     ThumbnailScroll.Visibility = System.Windows.Visibility.Visible;
+                    ThumbnailHideNames.Visibility = System.Windows.Visibility.Visible;
                 }
                 if (_currentFlow != Flow.Detail)
                     ColumnView.Visibility = System.Windows.Visibility.Collapsed;
@@ -702,13 +781,18 @@ namespace CairoExplorer
                 {
                     CoverFlowSplit.Visibility = System.Windows.Visibility.Collapsed;
                     CoverFlowViewer.Visibility = System.Windows.Visibility.Collapsed;
-                    CoverFlowView.Visibility = System.Windows.Visibility.Collapsed;
+                    if (_currentFlow != Flow.Detail)
+                        ColumnView.Visibility = System.Windows.Visibility.Collapsed;
+                    ColumnView.SetValue(Grid.RowProperty, 0);
+                    ColumnView.SetValue(Grid.RowSpanProperty, 3);
                 }
                 else
                 {
                     CoverFlowSplit.Visibility = System.Windows.Visibility.Visible;
                     CoverFlowViewer.Visibility = System.Windows.Visibility.Visible;
-                    CoverFlowView.Visibility = System.Windows.Visibility.Visible;
+                    ColumnView.Visibility = System.Windows.Visibility.Visible;
+                    ColumnView.SetValue(Grid.RowProperty, 2);
+                    ColumnView.SetValue(Grid.RowSpanProperty, 1);
                 }
                 if (_currentFlow != Flow.Column)
                 {
@@ -717,34 +801,67 @@ namespace CairoExplorer
                     _columnViews.Clear();
                     _columnViewPath.Clear();
                     ColumnScroller.ColumnDefinitions.Clear();
+                    ColumnScroller.Visibility = System.Windows.Visibility.Collapsed;
                     ColumnScroll.Visibility = System.Windows.Visibility.Collapsed;
                 }
                 else
+                {
+                    ColumnScroller.Visibility = System.Windows.Visibility.Visible;
                     ColumnScroll.Visibility = System.Windows.Visibility.Visible;
+                }
                 FixFlowSizes();
             }
-            if (flowRebuild == FlowRebuild.NoRebuildPathChanged)
+
+            if (flowRebuild == FlowRebuild.NoRebuildPathChanged ||
+                flowRebuild == FlowRebuild.NoRebuildPathAddition)
                 PreviewControls.Preview.PreviewClose();
             if (_currentFlow == Flow.Thumbnail)
-                UpdateThumbnailFlow();
+                UpdateThumbnailFlow(flowRebuild);
             if (_currentFlow == Flow.Detail)
-                UpdateDetailsFlow();
+                UpdateDetailsFlow(flowRebuild);
             if (_currentFlow == Flow.Column)
                 UpdateColumnFlow(flowRebuild);
             if (_currentFlow == Flow.CoverFlow)
-                UpdateCoverFlowFlow();
+                UpdateDetailsFlow(flowRebuild);
         }
 
         private void FixFlowSizes()
         {
-            ColumnView.Height = FolderNameText.ActualHeight - 10;
-            ColumnView.Width = FolderNameText.ActualWidth - 10;
+            double width = LayoutRoot.ColumnDefinitions[2].ActualWidth;
+            if((int)FolderNameText.GetValue(Grid.ColumnSpanProperty) == 2)
+                width += LayoutRoot.ColumnDefinitions[1].ActualWidth;
+            if (_currentFlow == Flow.CoverFlow)
+            {
+                ColumnView.Height = (FolderNameText.ActualHeight - 10) / 2 - 2;
+                ColumnView.MaxWidth = (width - 10);
+            }
+            else
+            {
+                if (FolderNameText.ActualHeight - 10 < 0)
+                    ColumnView.Height = 1;
+                else
+                    ColumnView.Height = FolderNameText.ActualHeight - 10;
+                if (width - 10 < 0)
+                    ColumnView.MaxWidth = 1;
+                else
+                    ColumnView.MaxWidth = width - 10;
+            }
 
-            CoverFlowView.Height = (FolderNameText.ActualHeight - 10) / 2 - 2;
-            CoverFlowView.Width = (FolderNameText.ActualWidth - 10);
-            CoverFlowViewer.Height = (FolderNameText.ActualHeight - 10) / 2 - 2;
-            CoverFlowViewer.Width = (FolderNameText.ActualWidth - 10);
+            ThumbnailScroll.Width = width - 10;
+            ThumbnailScroll.Height = FolderNameText.ActualHeight - 10;
+            if ((width - 10) / 2 - 2 < 0)
+            {
+                CoverFlowViewer.Height = 1;
+                CoverFlowViewer.Width = 1;
+            }
+            else
+            {
+                CoverFlowViewer.Height = (FolderNameText.ActualHeight - 10) / 2 - 2;
+                CoverFlowViewer.Width = (width - 10);
+            }
         }
+
+        #endregion
 
         #region Update Column Flow
 
@@ -762,17 +879,21 @@ namespace CairoExplorer
                 _columnViewPath.Clear();
                 _columnViewPath.Add(_currentWindowPath);
             }
+            else if (flowRebuild == FlowRebuild.NoRebuildPathAddition)
+            {
+                _columnViewPath.Add(_currentWindowPath);
+            }
 
             ColumnScroller.ColumnDefinitions.Clear();
 
             int colNum = 0, gridColNum = 0;
             foreach (string path in _columnViewPath)
             {
-                if(File.Exists(path))
+                if (File.Exists(path))
                     continue;
                 ColumnViewList view = new ColumnViewList();
                 ScrollViewer scroll = new ScrollViewer();
-                
+
                 string p = path;
                 foreach (var t in GetFilesAndFoldersForDirectory(ref p))
                 {
@@ -792,7 +913,7 @@ namespace CairoExplorer
                 icon.SetValue(Grid.ColumnProperty, 0);
                 dp.AppendChild(icon);
                 FrameworkElementFactory tb = new FrameworkElementFactory(typeof(TextBlock));
-                tb.SetBinding(TextBlock.TextProperty, new Binding("NameClean"));
+                tb.SetBinding(TextBlock.TextProperty, new Binding("Info.NameWithoutExtension"));
                 tb.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
                 tb.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Left);
                 tb.SetValue(TextBlock.TextAlignmentProperty, TextAlignment.Left);
@@ -807,7 +928,7 @@ namespace CairoExplorer
                 view.ContextMenu = new System.Windows.Controls.ContextMenu();
                 view.ContextMenuOpening += ContextMenuOpening;
 
-                view.MouseDoubleClick += new MouseButtonEventHandler(_columnView_MouseDoubleClick);
+                view.PreviewMouseDoubleClick += new MouseButtonEventHandler(_columnView_MouseDoubleClick);
                 view.ColumnNumber = gridColNum;
                 Column_ContainerStatusChanged(view);
                 if (oldColumnView.Count > gridColNum)
@@ -824,7 +945,7 @@ namespace CairoExplorer
                         oldColumnView[gridColNum].DesiredSize.Width : 200;
                     scroll.ScrollToVerticalOffset(((ScrollViewer)oldColumnView[gridColNum].Parent).ContentVerticalOffset);
                 }
-                
+
                 scroll.Content = view;
                 scroll.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
                 scroll.Height = FolderNameText.ActualHeight;
@@ -851,7 +972,7 @@ namespace CairoExplorer
             if (File.Exists(_columnViewPath[_columnViewPath.Count - 1]))
             {
                 VerticalPropertiesControl c = new VerticalPropertiesControl();
-                c.InitWithFile(new WrapperFileSystemInfo(new FileInfo(_columnViewPath[_columnViewPath.Count - 1])), Window);
+                c.InitWithFile(new WrapperFileSystemInfo(new GenericFileSystemInfo(new FileInfo(_columnViewPath[_columnViewPath.Count - 1]))), Window);
                 c.Height = 300;
                 c.Width = 300;
                 c.VerticalAlignment = System.Windows.VerticalAlignment.Top;
@@ -882,155 +1003,8 @@ namespace CairoExplorer
                 AddAutoHideScrollViewer(last_view);
             }
 
-            if(gridColNum * 200 > FolderNameText.RenderSize.Width)
+            if (gridColNum * 200 > FolderNameText.RenderSize.Width)
                 ColumnScroll.ScrollToRightEnd();
-        }
-
-        void view_MouseWheel(object sender, MouseWheelEventArgs e)
-        {
-            ColumnViewList col = sender as ColumnViewList;
-            ScrollViewer scroll = col.Parent as ScrollViewer;
-            scroll.ScrollToVerticalOffset(scroll.ContentVerticalOffset + (e.Delta < 0 ? 1 : -1) * 50);
-        }
-
-        void view_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            ListView view = sender as ListView;
-            if (Mouse.PrimaryDevice.LeftButton == MouseButtonState.Pressed)
-            {
-                CalcBottomBarStats();
-
-                if (view.SelectedItem != null)
-                {
-                    if (view.Name != "" || File.Exists(((WrapperFileSystemInfo)view.SelectedItem).Info.FullName))
-                    {
-                        PreviewControls.Preview.PreviewFileChanged(((WrapperFileSystemInfo)view.SelectedItem).Info.FullName, ((WrapperFileSystemInfo)view.SelectedItem), this, GetScreenPointForPreview(view));
-
-                        if (_currentFlow == Flow.Column)
-                        {
-                            ColumnViewList cview = sender as ColumnViewList;
-                            _columnViewPath.RemoveRange(cview.ColumnNumber + 1, _columnViewPath.Count - cview.ColumnNumber - 1);
-                            _columnViewPath.Add((cview.SelectedItem as WrapperFileSystemInfo).Info.FullName);
-                            UpdateFlows(FlowRebuild.NoRebuild);
-                        }
-                    }
-                    else
-                        _columnView_MouseDoubleClick(sender, null);
-                }
-            }
-        }
-
-        void _columnView_MouseDoubleClick(object sender, MouseButtonEventArgs e)
-        {
-            ColumnViewList view = sender as ColumnViewList;
-            if (view == null || view.SelectedItem == null)
-                return;
-
-            UpdateBackForwardQueues(_currentWindowName);
-            _currentWindowPath = ((WrapperFileSystemInfo)view.SelectedItem).Info.FullName;
-            if ((view.SelectedItem as WrapperFileSystemInfo).IsFolder)
-            {
-                _columnViewPath.RemoveRange(view.ColumnNumber + 1, _columnViewPath.Count - view.ColumnNumber - 1);
-                _columnViewPath.Add((view.SelectedItem as WrapperFileSystemInfo).Info.FullName);
-                UpdateFlows(FlowRebuild.NoRebuild);
-            }
-            else if ((view.SelectedItem as WrapperFileSystemInfo).IsDrive)
-            {
-                if (((WrapperFileSystemInfo)view.SelectedItem).Info.IsReady)
-                {
-                    _columnViewPath.RemoveRange(view.ColumnNumber + 1, _columnViewPath.Count - view.ColumnNumber - 1);
-                    _columnViewPath.Add((view.SelectedItem as WrapperFileSystemInfo).Info.FullName);
-                    UpdateFlows(FlowRebuild.NoRebuild);
-                }
-                else
-                    MessageBox.Show("This device is not ready, please insert media into it and try again", "Device not ready", MessageBoxButton.OK);
-            }
-            else if ((view.SelectedItem as WrapperFileSystemInfo).IsSpecial)
-            {
-                _columnViewPath.Clear();
-                _columnViewPath.Add((view.SelectedItem as WrapperFileSystemInfo).Info.FullName);
-                UpdateFlows(FlowRebuild.NoRebuild);
-            }
-            else
-                OpenFile(((WrapperFileSystemInfo)view.SelectedItem).Info.FullName);
-        }
-
-        private class ColumnViewList : ListView
-        {
-            public int ColumnNumber = 0;
-        }
-
-        #endregion
-
-        #region Update Cover Flow
-
-        private void UpdateCoverFlowFlow()
-        {
-            _fileSysList =
-               new ObservableCollection<WrapperFileSystemInfo>(GetFilesAndFoldersForDirectory(ref _currentWindowPath));
-
-            CoverFlowView.ItemsSource = _fileSysList;
-            foreach (var f in new List<WrapperFileSystemInfo>(_fileSysList))
-            {
-                if (((f.IsDrive && f.Info.IsReady) || f.IsFolder) && f.Info.FullName != null)
-                    AsyncGetSizeOfDirectory(f.Info.FullName, f, AsyncSizeUpdate, CoverFlowView);
-            }
-            ColumnSort(CoverFlowView, _sortingByName, _sortingBySort);
-        }
-
-        private void CoverFlowView_ContainerStatusChanged(object sender, EventArgs e)
-        {
-            if (CoverFlowView.ItemContainerGenerator.Status == System.Windows.Controls.Primitives.GeneratorStatus.ContainersGenerated)
-            {
-                for (int i = 0; i < CoverFlowView.Items.Count; i++)
-                {
-                    ListViewItem item = CoverFlowView.ItemContainerGenerator.ContainerFromIndex(i) as ListViewItem;
-                    if (i % 2 == 0)
-                        item.Background = new SolidColorBrush(Settings.ItemBackColor1);
-                    else
-                        item.Background = new SolidColorBrush(Settings.ItemBackColor2);
-                    item.FontSize = Settings.FontSize;
-                    item.FontFamily = new FontFamily(Settings.FontName);
-                    item.FontStretch = Settings.FontStretch;
-                }
-            }
-        }
-
-        #endregion
-
-        #region Update Details Flow
-
-        private void UpdateDetailsFlow()
-        {
-            _fileSysList =
-               new ObservableCollection<WrapperFileSystemInfo>(GetFilesAndFoldersForDirectory(ref _currentWindowPath));
-
-            ColumnView.ItemsSource = _fileSysList;
-            foreach (var f in new List<WrapperFileSystemInfo>(_fileSysList))
-            {
-                if (((f.IsDrive && f.Info.IsReady) || f.IsFolder) && f.Info.FullName != null)
-                    AsyncGetSizeOfDirectory(f.Info.FullName, f, AsyncSizeUpdate, ColumnView);
-            }
-            ColumnSort(ColumnView, _sortingByName, _sortingBySort);
-        }
-
-        private void AsyncSizeUpdate(WrapperFileSystemInfo f, double size, object v)
-        {
-            ListView view = v as ListView;
-            view.Dispatcher.Invoke(new Action(delegate()
-            {
-                int index = GetIndex(_fileSysList, f);
-                if (index >= 0)
-                {
-                    _fileSysList.RemoveAt(index);
-                    f.ByteSize = size;
-                    f.Size = GetFileSize(size / ByteCount);
-                    _fileSysList.Insert(index, f);
-                }
-                else
-                {
-                }
-            }));
         }
 
         private void ColumnView_ContainerStatusChanged(object sender, EventArgs e)
@@ -1042,6 +1016,7 @@ namespace CairoExplorer
                     ListViewItem item = ColumnView.ItemContainerGenerator.ContainerFromIndex(i) as ListViewItem;
                     if (item != null)
                     {
+                        item.Height = 40;
                         if (i % 2 == 0)
                             item.Background = new SolidColorBrush(Settings.ItemBackColor1);
                         else
@@ -1079,6 +1054,111 @@ namespace CairoExplorer
             };
         }
 
+        void view_MouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            ColumnViewList col = sender as ColumnViewList;
+            Grid grid = sender as Grid;
+            ScrollViewer scroll = col == null ? grid.Parent as ScrollViewer : col.Parent as ScrollViewer;
+            scroll.ScrollToVerticalOffset(scroll.ContentVerticalOffset + (e.Delta < 0 ? 1 : -1) * 50);
+        }
+
+        void view_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            ListView view = sender as ListView;
+            if (Mouse.PrimaryDevice.LeftButton == MouseButtonState.Pressed)
+            {
+                if (view.SelectedItem != null)
+                {
+                    if (view.Name != "" || File.Exists(((WrapperFileSystemInfo)view.SelectedItem).Info.Path))
+                    {
+                        PreviewControls.Preview.PreviewFileChanged(((WrapperFileSystemInfo)view.SelectedItem).Info.Path, ((WrapperFileSystemInfo)view.SelectedItem), this, GetScreenPointForPreview(view));
+
+                        if (_currentFlow == Flow.Column)
+                        {
+                            ColumnViewList cview = sender as ColumnViewList;
+                            _columnViewPath.RemoveRange(cview.ColumnNumber + 1, _columnViewPath.Count - cview.ColumnNumber - 1);
+                            _columnViewPath.Add((cview.SelectedItem as WrapperFileSystemInfo).Info.Path);
+                            UpdateFlows(FlowRebuild.NoRebuild);
+                        }
+                    }
+                    else
+                        _columnView_MouseDoubleClick(sender, null);
+                }
+            }
+        }
+
+        void _columnView_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            ColumnViewList view = sender as ColumnViewList;
+            if (view == null || view.SelectedItem == null)
+                return;
+
+            UpdateBackForwardQueues(_currentWindowName);
+            _currentWindowPath = ((WrapperFileSystemInfo)view.SelectedItem).Info.Path;
+            var file = (view.SelectedItem as WrapperFileSystemInfo);
+            if (file.Type.File)
+                OpenFile(file.Info.Path);
+            else if (file.Type.Special)
+            {
+                _columnViewPath.Clear();
+                _columnViewPath.Add((view.SelectedItem as WrapperFileSystemInfo).Info.Path);
+                UpdateFlows(FlowRebuild.NoRebuild);
+            }
+            else
+            {
+                if (file.Info.IsReady)
+                {
+                    _columnViewPath.RemoveRange(view.ColumnNumber + 1, _columnViewPath.Count - view.ColumnNumber - 1);
+                    _columnViewPath.Add(file.Info.Path);
+                    UpdateFlows(FlowRebuild.NoRebuild);
+                }
+                else
+                    MessageBox.Show("This device is not ready, please insert media into it and try again", "Device not ready", MessageBoxButton.OK);
+            }
+        }
+
+        private class ColumnViewList : ListView
+        {
+            public int ColumnNumber = 0;
+        }
+
+        #endregion
+
+        #region Update Details Flow
+
+        private void UpdateDetailsFlow(FlowRebuild flowRebuild)
+        {
+            _fileSysList = GetFilesAndFoldersForDirectory(ref _currentWindowPath, AsyncSizeUpdate);
+            foreach(var f in new List<WrapperFileSystemInfo>(_fileSysList))
+                f.GetSizeAsync();
+
+            GridView view = ColumnView.View as GridView;
+            view.Columns[0].Header = _fileSysList.Count + " items ";
+
+            ColumnView.ItemsSource = _fileSysList;
+            ColumnSort(ColumnView, _sortingByName, _sortingBySort);
+            if(ColumnView.Items.Count > 0)
+                ColumnView.ScrollIntoView(ColumnView.Items[0]);
+        }
+
+        private void AsyncSizeUpdate(WrapperFileSystemInfo f, double size, object v)
+        {
+            LayoutRoot.Dispatcher.Invoke(new Action(delegate()
+            {
+                int index = GetIndex(_fileSysList, f);
+                if (index >= 0)
+                {
+                    _fileSysList.RemoveAt(index);
+                    f.ByteSize = size;
+                    _fileSysList.Insert(index, f);
+                    ColumnView.ItemsSource = _fileSysList;
+                }
+                else
+                {
+                }
+            }));
+        }
+
         private void GridViewColumnHeaderClickedHandler(object sender, RoutedEventArgs e)
         {
             GridViewColumnHeader target =
@@ -1096,6 +1176,8 @@ namespace CairoExplorer
                     columnHeader.Background = new LinearGradientBrush(new GradientStopCollection(new List<GradientStop>(new GradientStop[3] { new GradientStop((Color)ColorConverter.ConvertFromString("#FFFFFFFF"),0), new GradientStop((Color)ColorConverter.ConvertFromString("#FFFFFFFF"),0.4091), new GradientStop((Color)ColorConverter.ConvertFromString("#FFF7F8F9"),1) })),new Point(0,0), new Point(0,1));
                 }
             }
+            _sortingByName = target.Column.Header.ToString();
+            _sortingBySort = !((ExtraGridViewColumn)target.Column).sortingUp;
             ColumnSort(ColumnView, target.Column.Header.ToString(), !((ExtraGridViewColumn)target.Column).sortingUp);
             ((ExtraGridViewColumn)target.Column).sortingUp = !((ExtraGridViewColumn)target.Column).sortingUp;
         }
@@ -1107,10 +1189,12 @@ namespace CairoExplorer
             if (e.MouseDevice.Target is GridViewColumnHeader)
             {
                 GridViewColumnHeader target = e.MouseDevice.Target as GridViewColumnHeader;
+                _sortingByName = target.Column.Header.ToString();
+                _sortingBySort = !((ExtraGridViewColumn)target.Column).sortingUp;
                 ColumnSort(ColumnView, target.Column.Header.ToString(), !((ExtraGridViewColumn)target.Column).sortingUp);
                 ((ExtraGridViewColumn)target.Column).sortingUp = !((ExtraGridViewColumn)target.Column).sortingUp;
             }
-            else if (e.MouseDevice.Target is Border && !(((Border)e.MouseDevice.Target).Child is GridViewRowPresenter))
+            else if (e.MouseDevice.Target is Border && !(((Border)e.MouseDevice.Target).Child is GridViewRowPresenter) && ((Border)e.MouseDevice.Target).Child is System.Windows.Shapes.Rectangle)
             {
                 //Autosizing of the headers, just pass it through
             }
@@ -1118,18 +1202,16 @@ namespace CairoExplorer
             {
                 if (ColumnView.SelectedItem == null)
                     return;
-                if ((ColumnView.SelectedItem as WrapperFileSystemInfo).IsFolder ||
-                    (ColumnView.SelectedItem as WrapperFileSystemInfo).IsSpecial)
-                    PushNotification(Notifications.ChangingFolder, ((WrapperFileSystemInfo)ColumnView.SelectedItem).Info.FullName);
-                else if ((ColumnView.SelectedItem as WrapperFileSystemInfo).IsDrive)
+                var item = (ColumnView.SelectedItem as WrapperFileSystemInfo);
+                if (item.Type.File)
+                    OpenFile(item.Info.Path);
+                else
                 {
-                    if (((WrapperFileSystemInfo)ColumnView.SelectedItem).Info.IsReady)
-                        PushNotification(Notifications.ChangingFolder, ((DriveFileSystemInfo)((WrapperFileSystemInfo)ColumnView.SelectedItem).Info).Drive.Name);
+                    if (item.Info.IsReady)
+                        PushNotification(Notifications.ChangingFolder, item.Info.Path);
                     else
                         MessageBox.Show("This device is not ready, please insert media into it and try again", "Device not ready", MessageBoxButton.OK);
                 }
-                else
-                    OpenFile(((WrapperFileSystemInfo)ColumnView.SelectedItem).Info.FullName);
             }
         }
 
@@ -1140,10 +1222,10 @@ namespace CairoExplorer
             List<WrapperFileSystemInfo> files = new List<WrapperFileSystemInfo>();
 
             foreach (var f in lists)
-                if (f.IsFolder || f.IsSpecial || f.IsDrive)
-                    folders.Add(f);
-                else
+                if (f.Type.File)
                     files.Add(f);
+                else
+                    folders.Add(f);
 
             ColumnListSorter(name, folders);
             ColumnListSorter(name, files);
@@ -1159,25 +1241,34 @@ namespace CairoExplorer
 
         private static void ColumnListSorter(string name, List<WrapperFileSystemInfo> lists)
         {
+            name = name.TrimEnd();
             lists.Sort(delegate(WrapperFileSystemInfo a, WrapperFileSystemInfo b)
             {
-                if (name == "Name")
+                if (name == "date modified")
+                    if (a.Info.DateModifiedString == b.Info.DateModifiedString)
+                        if (a.Type.Drive && b.Type.Drive)
+                            return ((DriveFileSystemInfo)a.Info).Drive.Name.CompareTo(((DriveFileSystemInfo)b.Info).Drive.Name);
+                        else
+                            return a.NameNoExtension.CompareTo(b.NameNoExtension);
+                    else
+                        return a.Info.DateModified.CompareTo(b.Info.DateModified);
+                else if (name == "type")
+                    if (a.Type.BaseExtension == b.Type.BaseExtension)
+                        if (a.Type.Drive && b.Type.Drive)
+                            return ((DriveFileSystemInfo)a.Info).Drive.Name.CompareTo(((DriveFileSystemInfo)b.Info).Drive.Name);
+                        else
+                            return a.NameNoExtension.CompareTo(b.NameNoExtension);
+                    else
+                        return a.Type.BaseExtension.CompareTo(b.Type.BaseExtension);
+                else if (name == "size")
+                    return a.ByteSize.CompareTo(b.ByteSize);
+                else
                 {
-                    if (a.IsDrive && b.IsDrive)
+                    if (a.Type.Drive && b.Type.Drive)
                         return ((DriveFileSystemInfo)a.Info).Drive.Name.CompareTo(((DriveFileSystemInfo)b.Info).Drive.Name);
                     else
-                        return a.NameClean.CompareTo(b.NameClean);
+                        return a.NameNoExtension.CompareTo(b.NameNoExtension);
                 }
-                if (name == "Date Modified")
-                    return a.Info.LastWriteTime.CompareTo(b.Info.LastWriteTime);
-                if (name == "Type")
-                    if (a.TypeClean == b.TypeClean)
-                        return a.NameClean.CompareTo(b.NameClean);
-                    else
-                        return a.TypeClean.CompareTo(b.TypeClean);
-                if (name == "Size")
-                    return a.ByteSize.CompareTo(b.ByteSize);
-                return 1;
             });
         }
 
@@ -1185,48 +1276,76 @@ namespace CairoExplorer
 
         #region Thumbnail Flow
 
-        private void UpdateThumbnailFlow()
+        private void UpdateThumbnailFlow(FlowRebuild flowRebuild)
         {
             ThumbnailDock.Children.Clear();
-            ThumbnailDock.ColumnDefinitions.Clear();
-            ThumbnailDock.RowDefinitions.Clear();
-            double width = thumbSize.Value * 20;
-            double height = thumbSize.Value * 20;
+            ThumbnailDock.VerticalAlignment = System.Windows.VerticalAlignment.Top;
+            double width = ThumbnailSize.Value * 20;
+            double height = ThumbnailSize.Value * 20;
             List<WrapperFileSystemInfo> infos = GetFilesAndFoldersForDirectory(ref _currentWindowPath);
             int col = 0, row = 0;
-            int maxCol = (int)Math.Round(FolderNameText.ActualWidth / width) - 1;
+            int maxCol = (int)Math.Round(FolderNameText.ActualWidth / (width - ThumbnailSize.Value * 1.5)) - 1;
             int rows = (int)Math.Round((double)infos.Count / maxCol) + 1;
-            for (int i = 0; i < maxCol; i++)
-                ThumbnailDock.ColumnDefinitions.Add(new ColumnDefinition() { Width = new GridLength(width) });
-            ThumbnailDock.RowDefinitions.Add(new RowDefinition() { Height = new GridLength(height) });
+
+            ThumbnailDock.Columns = maxCol;
             foreach (var i in infos)
             {
                 var ui = CreateDockPanel(i, width, height);
-                Grid.SetColumn(ui, col++);
+                if (maxCol != 0)
+                    Grid.SetColumn(ui, col++);
                 Grid.SetRow(ui, row);
                 if (col == maxCol)
                 {
                     col = 0;
                     row++;
-                    ThumbnailDock.RowDefinitions.Add(new RowDefinition() { Height = new GridLength(width) });
                 }
                 ThumbnailDock.Children.Add(ui);
             }
+            ThumbnailDock.Rows = row;
         }
 
         private UIElement CreateDockPanel(WrapperFileSystemInfo info, double height, double width)
         {
             ThumbnailViewElement ele = new ThumbnailViewElement();
-            ele.Image.Source = info.GetIcon(IconSize.large);
+            ele.Image.Source = info.GetIcon(IconSize.jumbo);
             ele.File = info;
-            ele.Name.Text = info.NameClean;
-            ele.Description.Text = "";// info.Info.DateModified;
-            ele.Size.Text = "";// info.Size;
-            ele.Type.Text = "";// info.TypeClean;
+            ele.Name.Text = info.NameNoExtension;
+            if (Settings.ShowThumbnailNames)
+                ele.Name.Visibility = System.Windows.Visibility.Visible;
+            else
+                ele.Name.Visibility = System.Windows.Visibility.Collapsed;
+            if (Settings.DetailedThumbnailView)
+            {
+                ele.Description.Text = info.Info.DateModified.ToFileDateTime();
+                ele.Size.Text = info.Size;
+                ele.Type.Text = info.Type.BaseExtension;
+            }
+            else
+            {
+                ele.Description.Visibility = System.Windows.Visibility.Collapsed;
+                ele.Size.Visibility = System.Windows.Visibility.Collapsed;
+                ele.Type.Visibility = System.Windows.Visibility.Collapsed;
+            }
+            if (!Settings.DetailedThumbnailView && !Settings.ShowThumbnailNames)
+            {
+                Grid.SetColumnSpan(ele.Image, 4);
+                Grid.SetRowSpan(ele.Image, 8);
+                Grid.SetColumn(ele.Image, 0);
+                Grid.SetRow(ele.Image, 0);
+                ele.Image.Margin = new Thickness(10, 10, 0, 0);
+            }
+            else
+            {
+                Grid.SetColumnSpan(ele.Image, 1);
+                Grid.SetRowSpan(ele.Image, 1);
+                Grid.SetColumn(ele.Image, 1);
+                Grid.SetRow(ele.Image, 1);
+                ele.Image.Margin = new Thickness();
+            }
+            ele.ContextMenu = new System.Windows.Controls.ContextMenu();
+            ele.ContextMenuOpening += ContextMenuOpening;
             ele.MouseDoubleClick += new MouseButtonEventHandler(ele_MouseDoubleClick);
             ele.PreviewKeyDown += ColumnView_KeyDown;
-            ele.Width = width;
-            ele.Height = height;
             ele.grid1.Width = width;
             ele.grid1.Height = height;
             return ele;
@@ -1237,22 +1356,17 @@ namespace CairoExplorer
             ThumbnailViewElement ele = sender as ThumbnailViewElement;
             if (ele != null)
             {
-                if (ele.File.IsFolder ||
-                    ele.File.IsSpecial)
-                    PushNotification(Notifications.ChangingFolder, ele.File.Info.FullName);
-                else if (ele.File.IsDrive)
+                if (ele.File.Type.File)
+                    OpenFile(ele.File.Info.Path);
+                else
                 {
                     if (ele.File.Info.IsReady)
-                        PushNotification(Notifications.ChangingFolder, ((DriveFileSystemInfo)(ele.File.Info)).Drive.Name);
+                        PushNotification(Notifications.ChangingFolder, ele.File.Info.Path);
                     else
                         MessageBox.Show("This device is not ready, please insert media into it and try again", "Device not ready", MessageBoxButton.OK);
                 }
-                else
-                    OpenFile(ele.File.Info.FullName);
             }
         }
-
-        #endregion
 
         #endregion
 
@@ -1260,26 +1374,25 @@ namespace CairoExplorer
 
         new void ContextMenuOpening(object sender, ContextMenuEventArgs e)
         {
-            ListView view = sender as ListView;
-            if (view.SelectedItem == null)
+            FrameworkElement view = sender as FrameworkElement;
+            var items = GetSelectedFileWrappers(view);
+            if (items.Count == 0)
             {
                 view.ContextMenu = null;
                 return;
             }
             view.ContextMenu = new ContextMenu();
             view.ContextMenu.Items.Add(createMenuItem("Open", item_Click, view));
-            if (!(view.SelectedItem as WrapperFileSystemInfo).IsFolder && 
-                !(view.SelectedItem as WrapperFileSystemInfo).IsSpecial && 
-                !(view.SelectedItem as WrapperFileSystemInfo).IsDrive)
+            if (items[0].Type.File)
                 view.ContextMenu.Items.Add(createMenuItem("Preview", item_Click, view));
-            if (IsDirectoryOrSpecialFolder(view.SelectedItem))
+            if (IsDirectoryOrSpecialFolder(items[0]))
                 view.ContextMenu.Items.Add(createMenuItem("Open in new window", item_Click, view));
             view.ContextMenu.Items.Add(new Separator());
             view.ContextMenu.Items.Add(createMenuItem("Restore previous versions - N/A", item_Click, view));
             view.ContextMenu.Items.Add(new Separator());
             view.ContextMenu.Items.Add(createMenuItem("Cut", item_Click, view));
             view.ContextMenu.Items.Add(createMenuItem("Copy", item_Click, view));
-            if (IsDirectoryOrSpecialFolder(view.SelectedItem))
+            if (IsDirectoryOrSpecialFolder(items[0]))
                 view.ContextMenu.Items.Add(createMenuItem("Paste into", item_Click, view));
             else
                 view.ContextMenu.Items.Add(createMenuItem("Paste", item_Click, view));
@@ -1291,7 +1404,7 @@ namespace CairoExplorer
             view.ContextMenu.Items.Add(createMenuItem("Properties", item_Click, view));
         }
 
-        MenuItem createMenuItem(string text, RoutedEventHandlerListView handler, ListView view)
+        MenuItem createMenuItem(string text, RoutedEventHandlerListView handler, FrameworkElement view)
         {
             MenuItem item = new MenuItem() { Header = text };
             item.Click += delegate(object sender, RoutedEventArgs e)
@@ -1301,25 +1414,24 @@ namespace CairoExplorer
             return item;
         }
 
-        void item_Click(object sender, RoutedEventArgs e, ListView view)
+        void item_Click(object sender, RoutedEventArgs e, FrameworkElement view)
         {
             MenuItem menuItem = sender as MenuItem;
             List<string> selectedItems = GetSelectedFiles(view);
+            var selectedItemWrappers = GetSelectedFileWrappers(view);
             switch (menuItem.Header.ToString())
             {
                 case "Open":
                     if (selectedItems.Count > 0)
-                        OpenItem(((WrapperFileSystemInfo)view.SelectedItem).Info.FullName, this);
+                        OpenItem(selectedItems[0], this);
                     break;
                 case "Open in new window":
                     if (selectedItems.Count > 0)
-                        OpenItem(((WrapperFileSystemInfo)view.SelectedItem).Info.FullName, this, true);
+                        OpenItem(selectedItems[0], this, true);
                     break;
                 case "Preview":
                     if (selectedItems.Count > 0)
-                    {
-                        PreviewControls.Preview.PreviewFile(selectedItems[0], view.SelectedItem, this, GetScreenPointForPreview(view));
-                    }
+                        PreviewControls.Preview.PreviewFile(selectedItems[0], selectedItemWrappers[0], this, GetScreenPointForPreview(view));
                     break;
                 case "Cut":
                     CutSelectedFiles(selectedItems);
@@ -1369,7 +1481,7 @@ namespace CairoExplorer
                     w.Show();
                 }
                 else if (window != null)
-                    window.PushNotification(Notifications.ChangingFolder, item);
+                    window.PushNotification(Notifications.ChangingFolder, item, FlowRebuild.NoRebuildPathAddition);
             }
         }
 
@@ -1379,7 +1491,7 @@ namespace CairoExplorer
 
         private bool IsDirectoryOrSpecialFolder(object p)
         {
-            return p is WrapperFileSystemInfo && (((WrapperFileSystemInfo)p).IsFolder || (((WrapperFileSystemInfo)p).IsDrive || ((WrapperFileSystemInfo)p).IsSpecial));
+            return p is WrapperFileSystemInfo && !((WrapperFileSystemInfo)p).Type.File;
         }
 
         private void DeleteSelectedFiles(List<string> selectedItems = null)
@@ -1390,7 +1502,10 @@ namespace CairoExplorer
                 List<string> notificationsRecentlyPushed = new List<string>();
                 foreach (string file in selectedItems)
                 {
-                    File.Delete(file);
+                    if (Directory.Exists(file))
+                        Directory.Delete(file, true);
+                    else
+                        File.Delete(file);
                 }
                 PushNotification(Notifications.FolderChanged, _currentWindowPath);
             }
@@ -1453,9 +1568,10 @@ namespace CairoExplorer
                     }
                     if (success)
                     {
-                        File.Copy(file, Path.Combine(folderBeingPastedInfo, Path.GetFileName(fileName)));
                         if (doCut)
-                            File.Delete(file);
+                            File.Move(file, Path.Combine(folderBeingPastedInfo, Path.GetFileName(fileName)));
+                        else
+                            File.Copy(file, Path.Combine(folderBeingPastedInfo, Path.GetFileName(fileName)));
                     }
                 }
                 PushNotification(Notifications.FolderChanged, folderBeingPastedInfo);
@@ -1469,15 +1585,11 @@ namespace CairoExplorer
         private List<string> GetSelectedFiles(object view = null)
         {
             List<string> files = new List<string>();
-            if (_currentFlow == Flow.Detail)
+            if (_currentFlow == Flow.Detail ||
+                _currentFlow == Flow.CoverFlow)
             {
                 foreach (var o in ColumnView.SelectedItems)
-                    files.Add((o as WrapperFileSystemInfo).Info.FullName);
-            }
-            if (_currentFlow == Flow.CoverFlow)
-            {
-                foreach (var o in CoverFlowView.SelectedItems)
-                    files.Add((o as WrapperFileSystemInfo).Info.FullName);
+                    files.Add((o as WrapperFileSystemInfo).Info.Path);
             }
             if (_currentFlow == Flow.Column)
             {
@@ -1487,7 +1599,12 @@ namespace CairoExplorer
                     column = view as ColumnViewList;
 
                 foreach (var o in column.SelectedItems)
-                    files.Add((o as WrapperFileSystemInfo).Info.FullName);
+                    files.Add((o as WrapperFileSystemInfo).Info.Path);
+            }
+            if (_currentFlow == Flow.Thumbnail)
+            {
+                ThumbnailViewElement ele = (ThumbnailViewElement)view;
+                files.Add(ele.File.Info.Path);
             }
             return files;
         }
@@ -1495,14 +1612,10 @@ namespace CairoExplorer
         private List<WrapperFileSystemInfo> GetSelectedFileWrappers(object view = null)
         {
             List<WrapperFileSystemInfo> files = new List<WrapperFileSystemInfo>();
-            if (_currentFlow == Flow.Detail)
+            if (_currentFlow == Flow.Detail ||
+                _currentFlow == Flow.CoverFlow)
             {
                 foreach (var o in ColumnView.SelectedItems)
-                    files.Add((o as WrapperFileSystemInfo));
-            }
-            if (_currentFlow == Flow.CoverFlow)
-            {
-                foreach (var o in CoverFlowView.SelectedItems)
                     files.Add((o as WrapperFileSystemInfo));
             }
             if (_currentFlow == Flow.Column)
@@ -1514,6 +1627,11 @@ namespace CairoExplorer
 
                 foreach (var o in column.SelectedItems)
                     files.Add((o as WrapperFileSystemInfo));
+            }
+            if (_currentFlow == Flow.Thumbnail)
+            {
+                ThumbnailViewElement ele = (ThumbnailViewElement)view;
+                files.Add(ele.File);
             }
             return files;
         }
@@ -1522,7 +1640,7 @@ namespace CairoExplorer
 
         #region Folder Helpers
 
-        private List<WrapperFileSystemInfo> GetFilesAndFoldersForDirectory(ref string path)
+        private List<WrapperFileSystemInfo> GetFilesAndFoldersForDirectory(ref string path, AsyncDirectorySizeCallBack AsyncSizeUpdate = null)
         {
             List<WrapperFileSystemInfo> fs = new List<WrapperFileSystemInfo>();
             if (path == "//" || path == "Computer" || path == "My Computer")
@@ -1533,7 +1651,7 @@ namespace CairoExplorer
                 {
                     if (d.IsReady)
                     {
-                        WrapperFileSystemInfo f = new WrapperFileSystemInfo(new DriveFileSystemInfo(d));
+                        WrapperFileSystemInfo f = new WrapperFileSystemInfo(new DriveFileSystemInfo(d), 0, AsyncSizeUpdate);
                         fs.Add(f);
                     }
                     else
@@ -1545,10 +1663,17 @@ namespace CairoExplorer
             else if (path == "Favorites" || path == "Home")
             {
                 foreach (Favorite f in _favorites)
+                {
+                    WrapperFileSystemInfo wrapper = null;
                     if (_specialPaths.Contains(f.Path) && f.Name != "Favorites" && f.Name != "Home")
-                        fs.Add(new WrapperFileSystemInfo(new GenericFileSystemInfo(f.Path, f.Name, ""), 0));
-                    else if(f.Name != "Favorites" && f.Name != "Home")
-                        fs.Add(new WrapperFileSystemInfo(new DirectoryInfo(f.Path), 0));
+                        wrapper = new WrapperFileSystemInfo(new GenericFileSystemInfo(f.Path, f.Name, DateTime.Now), 0, AsyncSizeUpdate);
+                    else if (f.Name != "Favorites" && f.Name != "Home")
+                        wrapper = new WrapperFileSystemInfo(new GenericFileSystemInfo(new DirectoryInfo(f.Path)), 0, AsyncSizeUpdate);
+                    if (wrapper != null)
+                    {
+                        fs.Add(wrapper);
+                    }
+                }
                 return fs;
             }
             else if (path == "Desktop")
@@ -1557,7 +1682,8 @@ namespace CairoExplorer
             }
             else if (path == "Network")
             {
-                path = "Network";
+                path = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                path = Path.Combine(Path.Combine(Path.Combine(path, "Microsoft"), "Windows"), "Network Shortcuts");
             }
 
             if (!Directory.Exists(path))
@@ -1574,7 +1700,7 @@ namespace CairoExplorer
                 if (!Settings.ShowHiddenFilesAndFolders)
                     if ((d.Attributes & FileAttributes.Hidden) == FileAttributes.Hidden)
                         continue;
-                WrapperFileSystemInfo f = new WrapperFileSystemInfo(d);
+                WrapperFileSystemInfo f = new WrapperFileSystemInfo(new GenericFileSystemInfo(d), 0, AsyncSizeUpdate);
                 fs.Add(f);
             }
             string[] files = Directory.GetFiles(path);
@@ -1584,7 +1710,7 @@ namespace CairoExplorer
                 if (!Settings.ShowHiddenFilesAndFolders)
                     if ((fi.Attributes & FileAttributes.Hidden) == FileAttributes.Hidden)
                         continue;
-                WrapperFileSystemInfo f = new WrapperFileSystemInfo(fi, fi.Length);
+                WrapperFileSystemInfo f = new WrapperFileSystemInfo(new GenericFileSystemInfo(fi), fi.Length);
                 fs.Add(f);
             }
             return fs;
@@ -1606,7 +1732,7 @@ namespace CairoExplorer
             Window.Title = text + " - " + Constants.Branding;
         }
 
-        private void CalcBottomBarStats()
+        /*private void CalcBottomBarStats()
         {
             List<string> selectedFiles = GetSelectedFiles();
             BottomBarItemSelectedFolderText.Text = _currentWindowName;
@@ -1620,6 +1746,7 @@ namespace CairoExplorer
                 double size = GetSizeOf(selectedFiles.ToArray());
                 string sizeAmt = GetFileSize(ref size);
                 BottomBarItemSelectedText.Text = string.Format("{0} Item{1} Selected, {2} {3} Total", selectedFiles.Count, selectedFiles.Count != 1 ? "s" : "", size, sizeAmt);
+                UpdateFlows(FlowRebuild.BottomBarUpdated);
             }
             else
             {
@@ -1634,11 +1761,12 @@ namespace CairoExplorer
                     int numItems = files.Length + Directory.GetDirectories(_currentWindowPath).Length;
                     double size = GetSizeOf(files);
                     string sizeAmt = GetFileSize(ref size);
-                    BottomBarItemSelectedText.Text = string.Format("{0} Item{1} Selected, {2} {3} Total", numItems, numItems != 1 ? "s" : "", size, sizeAmt);
+                    BottomBarItemSelectedText.Text = string.Format("{0} Item{1}, {2} {3} Total", numItems, numItems != 1 ? "s" : "", size, sizeAmt);
+                    UpdateFlows(FlowRebuild.BottomBarUpdated);
                 }
                 catch { }
             }
-        }
+        }*/
 
         public static double GetSizeOf(string[] path)
         {
@@ -1722,7 +1850,7 @@ namespace CairoExplorer
             int i = 0;
             foreach (WrapperFileSystemInfo f in e)
             {
-                if (f.Info.FullName == file.Info.FullName)
+                if (f.Info.Path == file.Info.Path)
                     return i;
                 i++;
             }
@@ -1883,6 +2011,11 @@ namespace CairoExplorer
             CairoExplorerWindow_ScrollChanged(sender, null);
         }
 
+        void ThumbnailScroll_ScrollChanged(object sender, ScrollChangedEventArgs e)
+        {
+            CairoExplorerWindow_ScrollChanged(sender, null);
+        }
+
         private void CairoExplorerWindow_ScrollChanged(object sender, ScrollChangedEventArgs e)
         {
             FrameworkElement ele = sender as FrameworkElement;
@@ -1902,12 +2035,20 @@ namespace CairoExplorer
         private void SetScrollViewerAnimation(FrameworkElement ele, bool fadeIn, EventHandler handler=null)
         {
             // Get the border of the listview (first child of a listview)
-            Decorator border = VisualTreeHelper.GetChild(ele, 0) as Decorator;
 
-            // Get scrollviewer
-            ScrollViewer scrollViewer = ele is ScrollViewer ? ele as ScrollViewer : border.Child as ScrollViewer;
+            Decorator border = null;
+            Grid scrollGrid = null;
+            if (VisualTreeHelper.GetChildrenCount(ele) > 0)
+            {
+                border = VisualTreeHelper.GetChild(ele, 0) as Decorator;
+                // Get scrollviewer
+                ScrollViewer scrollViewer = ele is ScrollViewer ? ele as ScrollViewer : border.Child as ScrollViewer;
 
-            Grid scrollGrid = VisualTreeHelper.GetChild(scrollViewer, 0) as Grid;
+                scrollGrid = VisualTreeHelper.GetChild(scrollViewer, 0) as Grid;
+            }
+            else
+                scrollGrid = ele.Parent as Grid;
+
             var c2 = VisualTreeHelper.GetChild(scrollGrid, 1);
             System.Windows.Controls.Primitives.ScrollBar bar = c2 as System.Windows.Controls.Primitives.ScrollBar;
             foreach (var c in scrollGrid.Children)
@@ -2117,26 +2258,63 @@ namespace CairoExplorer
 
         private void StackPanel_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            DriveTreeView.Visibility = DriveTreeView.Visibility == System.Windows.Visibility.Collapsed ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
-            var c = Window.Resources["CairoExplorerSidebarSectionHeaderClosed"];
-            var o = Window.Resources["CairoExplorerSidebarSectionHeaderOpen"];
-            DriveTreeStack.Style = DriveTreeView.Visibility == System.Windows.Visibility.Collapsed ? (Style)c : (Style)o;
+            SetStackPanelIsOpen(sender as StackPanel, DriveTreeView);
         }
 
         private void StackPanel_MouseLeftButtonDown_1(object sender, MouseButtonEventArgs e)
         {
-            FavoritesList.Visibility = FavoritesList.Visibility == System.Windows.Visibility.Collapsed ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
-            var c = Window.Resources["CairoExplorerSidebarSectionHeaderClosed"];
-            var o = Window.Resources["CairoExplorerSidebarSectionHeaderOpen"];
-            FavoritesStack.Style = FavoritesList.Visibility == System.Windows.Visibility.Collapsed ? (Style)c : (Style)o;
+            SetStackPanelIsOpen(sender as StackPanel, FavoritesList);
         }
 
         private void StackPanel_MouseLeftButtonDown_2(object sender, MouseButtonEventArgs e)
         {
-            DeviceList.Visibility = DeviceList.Visibility == System.Windows.Visibility.Collapsed ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+            SetStackPanelIsOpen(sender as StackPanel, DeviceList);
+        }
+
+        private void SetStackPanelIsOpen(StackPanel panel, FrameworkElement list)
+        {
+            int millisecondAnimation = 75;
+            list.Visibility = list.Visibility == System.Windows.Visibility.Collapsed ? System.Windows.Visibility.Visible : System.Windows.Visibility.Visible;
+            DoubleAnimation upAnim = new DoubleAnimation(332, new Duration(TimeSpan.FromMilliseconds(millisecondAnimation)));
+            if (double.IsNaN(list.Height) && list.ActualHeight != 0)
+                list.Height = 332;
+            else
+                list.Height = 0;
+            list.BeginAnimation(HeightProperty, upAnim);
+            ((TextBlock)panel.Children[0]).Foreground = list.Visibility == System.Windows.Visibility.Collapsed ? Settings.NonSelectedItemTextColorBrush : Settings.TextColorBrush;
+            if (list.Visibility == System.Windows.Visibility.Visible)
+            {
+                if (FavoritesStack != panel)
+                {
+                    DoubleAnimation animation = new DoubleAnimation(0, new Duration(TimeSpan.FromMilliseconds(millisecondAnimation)));
+                    animation.Completed += (obj, ev) => { FavoritesList.Visibility = Visibility.Collapsed; };
+                    FavoritesList.Height = FavoritesList.RenderSize.Height;
+                    FavoritesList.BeginAnimation(HeightProperty, animation);
+
+                    ((TextBlock)FavoritesStack.Children[0]).Foreground = Settings.NonSelectedItemTextColorBrush;
+                }
+                if (DevicesStack != panel)
+                {
+                    DoubleAnimation animation = new DoubleAnimation(0, new Duration(TimeSpan.FromMilliseconds(millisecondAnimation)));
+                    animation.Completed += (obj, ev) => { DeviceList.Visibility = Visibility.Collapsed; };
+                    DeviceList.Height = DeviceList.RenderSize.Height;
+                    DeviceList.BeginAnimation(HeightProperty, animation);
+
+                    ((TextBlock)DevicesStack.Children[0]).Foreground = Settings.NonSelectedItemTextColorBrush;
+                }
+                if (DriveTreeStack != panel)
+                {
+                    DoubleAnimation animation = new DoubleAnimation(0, new Duration(TimeSpan.FromMilliseconds(millisecondAnimation)));
+                    animation.Completed += (obj, ev) => { DriveTreeView.Visibility = Visibility.Collapsed; };
+                    DriveTreeView.Height = DriveTreeView.RenderSize.Height;
+                    DriveTreeView.BeginAnimation(HeightProperty, animation);
+
+                    ((TextBlock)DriveTreeStack.Children[0]).Foreground = Settings.NonSelectedItemTextColorBrush;
+                }
+            }
             var c = Window.Resources["CairoExplorerSidebarSectionHeaderClosed"];
             var o = Window.Resources["CairoExplorerSidebarSectionHeaderOpen"];
-            DevicesStack.Style = DeviceList.Visibility == System.Windows.Visibility.Collapsed ? (Style)c : (Style)o;
+            panel.Style = list.Visibility == System.Windows.Visibility.Collapsed ? (Style)c : (Style)o;
         }
 
         #endregion
@@ -2147,19 +2325,24 @@ namespace CairoExplorer
         {
             openedFiles = openedFiles == null ? GetSelectedFileWrappers() : openedFiles;
             foreach (WrapperFileSystemInfo file in openedFiles)
-                PreviewControls.Preview.PreviewFile(file.Info.FullName, file, this, p);
+                PreviewControls.Preview.PreviewFile(file.Info.Path, file, this, p);
         }
 
         #endregion
 
         #region Helpers
 
-        private static Point GetScreenPointForPreview(ListView view)
+        private static Point GetScreenPointForPreview(FrameworkElement v)
         {
-            var listViewItem = view.ItemContainerGenerator.ContainerFromIndex(view.SelectedIndex) as ListViewItem;
-            Point relativePoint = ElementPointToScreenPoint(listViewItem, new Point());
-            if (view.View != null && ((GridView)view.View).Columns.Count > 0)
-                relativePoint.X += ((GridView)view.View).Columns[0].ActualWidth + 50;
+            Point relativePoint = new Point();
+            if (v is ListView)
+            {
+                ListView view = (ListView)v;
+                var listViewItem = view.ItemContainerGenerator.ContainerFromIndex(view.SelectedIndex) as ListViewItem;
+                relativePoint = ElementPointToScreenPoint(listViewItem, new Point());
+                if (view.View != null && ((GridView)view.View).Columns.Count > 0)
+                    relativePoint.X += ((GridView)view.View).Columns[0].ActualWidth + 50;
+            }
             return relativePoint;
         }
 
@@ -2224,7 +2407,7 @@ namespace CairoExplorer
             {
                 if (PreviewControls.Preview.OpenPreview != null)
                     PreviewControls.Preview.PreviewClose();
-                else
+                else if (view.SelectedIndex >= 0)
                 {
                     var listViewItem = view.ItemContainerGenerator.ContainerFromIndex(view.SelectedIndex) as ListViewItem;
                     Point relativePoint = ElementPointToScreenPoint(listViewItem, new Point());
@@ -2260,9 +2443,12 @@ namespace CairoExplorer
 
         private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
         {
+            if (Window.ActualHeight < 112)
+            {
+                Window.MinHeight = 112;
+                Window.Height = 112;
+            }
             FixFlowSizes();
-
-            SearchText.Width = SearchDockPanel.ActualWidth - 20;
         }
 
         #endregion
@@ -2272,6 +2458,43 @@ namespace CairoExplorer
             if(_hasFinishedInit)
                 PushNotification(Notifications.FolderChanged, "");
         }
+
+        private void MenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            Button item = sender as Button;
+            if (item.ToolTip.ToString() == "Details")
+                _currentFlow = Flow.Detail;
+            if (item.ToolTip.ToString() == "Coverflow")
+                _currentFlow = Flow.CoverFlow;
+            if (item.ToolTip.ToString() == "Thumbnail")
+                _currentFlow = Flow.Thumbnail;
+            if (item.ToolTip.ToString() == "Column")
+                _currentFlow = Flow.Column;
+            UpdateFlows(FlowRebuild.RebuildAllFlows);
+        }
+
+        private void ThumbnailHideNames_Checked_1(object sender, RoutedEventArgs e)
+        {
+            if (!IsInitialized) return;
+            Settings.ShowThumbnailNames = (sender as CheckBox).IsChecked == true;
+            UpdateFlows(FlowRebuild.RebuildAllFlows);
+        }
+
+        private void LeftEdge_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            Sidebar.Visibility = Sidebar.Visibility == System.Windows.Visibility.Collapsed ? Visibility.Visible : Visibility.Collapsed;
+            if (Sidebar.Visibility == System.Windows.Visibility.Collapsed)
+            {
+                FolderNameText.SetValue(Grid.ColumnSpanProperty, 2);
+                FolderNameText.SetValue(Grid.ColumnProperty, 1);
+            }
+            else
+            {
+                FolderNameText.SetValue(Grid.ColumnSpanProperty, 1);
+                FolderNameText.SetValue(Grid.ColumnProperty, 2);
+            }
+            FixFlowSizes();
+        }
     }
 
     #region Wrapper Classes
@@ -2280,81 +2503,87 @@ namespace CairoExplorer
     {
         public DriveInfo Drive;
         public DriveFileSystemInfo(DriveInfo d)
-            : base(d.Name, (d.IsReady ? (d.VolumeLabel == "" ? "Local Disk" : d.VolumeLabel) : d.DriveType.ToString()) + " (" + d.Name.Substring(0, d.Name.Length - 1) + ")"/*d.Name + (d.IsReady ? (" - " + d.VolumeLabel) : "")*/, "", "Drive")
+            : base(d.Name, (d.IsReady ? (d.VolumeLabel == "" ? "Local Disk" : d.VolumeLabel) : d.DriveType.ToString()) + " (" + d.Name.Substring(0, d.Name.Length - 1) + ")"/*d.Name + (d.IsReady ? (" - " + d.VolumeLabel) : "")*/, DateTime.Now)
         {
             Drive = d;
             IsReady = d.IsReady;
         }
     }
 
-    public class GenericFileSystemInfo : FileSystemInfo
+    public class GenericFileSystemInfo
     {
-        protected string name;
-        protected string fullName;
-        protected string lastModified;
-        protected bool _ready = true;
+        protected bool _Ready = true;
 
-        public GenericFileSystemInfo(string fullName, string Name, string lastModified, string Type = "Special")
+        public GenericFileSystemInfo(string Path, string Name, DateTime DateModified)
         {
-            this.fullName = fullName;
-            name = Name;
-            this.lastModified = lastModified;
-            if (Type == "Special")
-            {
-                DriveInfo[] drives = DriveInfo.GetDrives();
-                if (File.Exists(fullName))
-                    Type = Path.GetExtension(fullName);
-                else if ((from d in drives where d.Name == fullName select d).Count() > 0)
-                    Type = "Drive";
-                else if (Directory.Exists(fullName))
-                    Type = "Folder";
-            }
-            this.Type = Type;
+            Init(Path, Name, DateModified);
         }
 
-        public string DateModified
+        private void Init(string Path, string Name, DateTime DateModified, string NameWithoutExtension = "")
         {
-            get { return lastModified; }
+            this.Path = Path;
+            this.Name = Name;
+            this.Type = new TypeDefinition(Path);
+            this.DateModified = DateModified;
+            if (NameWithoutExtension == "")
+                this.NameWithoutExtension = Name;
+            else
+                this.NameWithoutExtension = NameWithoutExtension;
         }
 
-        public override string FullName
+        public GenericFileSystemInfo(FileInfo fileInfo)
         {
-            get
-            {
-                return fullName;
-            }
+            Init(fileInfo.FullName, fileInfo.Name, fileInfo.LastWriteTime, System.IO.Path.GetFileNameWithoutExtension(fileInfo.Name));
+            FileLength = fileInfo.Length;
         }
 
-        public override bool Exists
+        public GenericFileSystemInfo(DirectoryInfo directory)
+        {
+            Init(directory.FullName, directory.Name, directory.LastWriteTime);
+        }
+
+        public DateTime DateModified { get; private set; }
+        public string DateModifiedString { get { return DateModified.ToFileDateTime(); } }
+
+        public string Path
+        {
+            get;
+            private set;
+        }
+
+        public bool Exists
         {
             get { return true; }
         }
 
-        public ImageSource Icon
+        public TypeDefinition Type
         {
             get;
-            set;
-        }
-
-        public string Type
-        {
-            get;
-            set;
+            private set;
         }
 
         public bool IsReady
         {
-            get { return _ready; }
-            set { _ready = value; }
+            get { return _Ready; }
+            set { _Ready = value; }
         }
 
-        public override string Name
+        public string Name
         {
-            get { return name; }
+            get;
+            private set;
         }
 
-        public override void Delete()
+        public string NameWithoutExtension
         {
+            get;
+            private set;
+        }
+
+        public double FileLength
+        {
+            get;
+            private set;
         }
     }
 
@@ -2362,60 +2591,128 @@ namespace CairoExplorer
     {
         public static string ToFileDateTime(this DateTime t)
         {
-            return t.ToShortDateString() + " " + t.ToShortTimeString();
+            if ((DateTime.Now - t).Days < 1)
+            {
+                var ms = (DateTime.Now - t).Seconds;
+                if (ms < 10)
+                    return "Right now";
+                else
+                    return "Today " + t.ToShortTimeString();
+            }
+            if ((DateTime.Now - t).Days < 2)
+                return "Yesterday " + t.ToShortTimeString();
+            return t.ToLongDateString() + " " + t.ToShortTimeString();
+        }
+    }
+
+    public class TypeDefinition
+    {
+        public static DriveInfo[] _drives = DriveInfo.GetDrives();
+        private Dictionary<string, string> _typeConverter = new Dictionary<string, string>() 
+        { 
+            { ".lnk", "Shortcut" },
+            { ".exe", "Application" }
+        };
+
+        private bool _File;
+        private bool _Folder;
+        private bool _Drive;
+        private bool _Special;
+        private string _BaseExtension;
+        private string _Extension;
+
+        public bool File { get { return this._File; } }
+        public bool Folder { get { return this._Folder; } }
+        public bool Drive { get { return this._Drive; } }
+        public bool Special { get { return this._Special; } }
+        public string BaseExtension { get { return this._BaseExtension; } }
+        public string Extension { get { return this._Extension; } }
+
+        public TypeDefinition(string path)
+        {
+            if (System.IO.File.Exists(path))
+            {
+                _Extension = Path.GetExtension(path);
+                if(_typeConverter.ContainsKey(_Extension))
+                    _BaseExtension = _typeConverter[_Extension];
+                else if(_Extension.Length > 0)
+                    _BaseExtension = _Extension.Substring(1);
+                _File = true;
+            }
+            else if ((from d in _drives where d.Name == path select d).Count() > 0)
+            {
+                _Extension = "";
+                _BaseExtension = "Drive";
+                _Drive = true;
+            }
+            else if (Directory.Exists(path))
+            {
+                _Extension = "";
+                _BaseExtension = "Folder";
+                _Folder = true;
+            }
+            else
+            {
+                _Extension = "";
+                _BaseExtension = "Special";
+                _Special = true;
+            }
         }
     }
 
     public class WrapperFileSystemInfo
     {
         private static FileToIconConverter _iconConverter = new FileToIconConverter();
-        private Dictionary<string, string> _typeConverter = new Dictionary<string,string>();
-
-        public WrapperFileSystemInfo(FileSystemInfo info, double size = 0)
+        private AsyncDirectorySizeCallBack AsyncSizeUpdate = null;
+        private static Dictionary<string, BitmapImage> _DefaultBitmaps = new Dictionary<string, BitmapImage>()
         {
-            _typeConverter.Add(".lnk", "Shortcut");
-            _typeConverter.Add(".exe", "Application");
+            { "Folder", new BitmapImage(new Uri("pack://application:,,,/CairoExplorer;component/UI_RES/Folder-Closed-icon.png")) },
+            { "Drive", new BitmapImage(new Uri("pack://application:,,,/CairoExplorer;component/UI_RES/disk.png")) },
+            { "File", new BitmapImage(new Uri("pack://application:,,,/CairoExplorer;component/UI_RES/file-icon.png")) }
+        };
 
-            Info = info is GenericFileSystemInfo ? (GenericFileSystemInfo)info : new GenericFileSystemInfo(info.FullName, info.Name, info.LastWriteTime.ToFileDateTime(), info is DirectoryInfo ? "Folder" : info.Extension);
-            ByteSize = size;
-            Size = CairoExplorerWindow.GetFileSize(size / CairoExplorerWindow.ByteCount);
+        public WrapperFileSystemInfo(GenericFileSystemInfo info, double size = 0, AsyncDirectorySizeCallBack AsyncSizeUpdate = null)
+        {
+            this.Info = info;
+            this.AsyncSizeUpdate = AsyncSizeUpdate;
+            if (size == 0)
+            {
+                if (info.Type.File)
+                    this.ByteSize = info.FileLength;
+            }
+            else
+                this.ByteSize = size;
+        }
+
+        public void GetSizeAsync()
+        {
+            if (!Info.Type.File && !Info.Type.Special)
+                CairoExplorerWindow.AsyncGetSizeOfDirectory(Info.Path, this, AsyncSizeUpdate == null ? ((f, s, p) => ByteSize = s) : AsyncSizeUpdate);
         }
 
         public GenericFileSystemInfo Info { get; private set; }
 
-        public string Type
+        public TypeDefinition Type
         {
             get { return Info.Type; }
         }
 
-        public string NameClean
+        public string NameNoExtension
         {
-            get { return Settings.ShowExtensions || IsDrive || IsSpecial || IsFolder ? Info.Name : Path.GetFileNameWithoutExtension(Info.Name); }
-        }
-
-        public string TypeClean
-        {
-            get { return _typeConverter.ContainsKey(Info.Type) ? _typeConverter[Info.Type] : Info.Type; }
-        }
-
-        public bool IsFolder
-        {
-            get { return Type == "Folder"; }
-        }
-
-        public bool IsSpecial
-        {
-            get { return Type == "Special"; }
-        }
-
-        public bool IsDrive
-        {
-            get { return Info is DriveFileSystemInfo; }
+            get { return Settings.ShowExtensions || !Type.File ? Info.Name : Path.GetFileNameWithoutExtension(Info.Name); }
         }
 
         public override string ToString()
         {
             return Info.ToString();
+        }
+
+        public BitmapImage Thumbnail
+        {
+            get
+            {
+                return GetIcon(IconSize.thumbnail);
+            }
         }
 
         public BitmapImage Icon
@@ -2428,53 +2725,42 @@ namespace CairoExplorer
 
         public BitmapImage GetIcon(IconSize size)
         {
-            if (IsFolder)
-                return new BitmapImage(new Uri("http://icons.iconarchive.com/icons/deleket/scrap/256/Folder-Closed-icon.png"));
-            else
+            if (Type.Folder)
+                return _DefaultBitmaps["Folder"];
+            if (Type.Drive || Type.Special)
+                return _DefaultBitmaps["Drive"];
+            if (Info.Type.BaseExtension == "")
+                return _DefaultBitmaps["File"];
+            string ext = Info.Type.Extension;
+            switch (ext.ToLower())
             {
-                if (IsSpecial)
-                    return new BitmapImage(new Uri("http://prodev.wsd.wednet.edu/users/fmstech/weblog/d25cd/images/81e15.jpg"));
-                string ext = Info.Type;
-                switch (ext)
-                {
-                    case ".jpg":
-                    case ".jpeg":
-                    case ".tiff":
-                    case ".tif":
-                    case ".gif":
-                    case ".bmp":
-                    case ".png":
-                        return new BitmapImage(new Uri(Info.FullName));
-                }
-                //System.Drawing.Icon icon =
-                //    System.Drawing.Icon.ExtractAssociatedIcon(Info.FullName);
-                if (Info.Type == "")
-                    return new BitmapImage(new Uri("http://icons.iconarchive.com/icons/gakuseisean/radium/256/file-icon.png"));
-                if (!File.Exists("IconCache/" + Info.Type.Substring(1) + size.ToString() + ".jpg"))
-                {
-                    var s = _iconConverter.GetImage(Info.FullName, size);
-                    BitmapSource source = s as BitmapSource;
-                    using (FileStream fileStream = new FileStream("IconCache/" + Info.Type.Substring(1) + size.ToString() + ".jpg", FileMode.Create))
+                case ".jpg":
+                case ".jpeg":
+                case ".tiff":
+                case ".tif":
+                case ".gif":
+                case ".bmp":
+                case ".png":
+                    try
                     {
-                        JpegBitmapEncoder encoder = new JpegBitmapEncoder();
-                        encoder.Frames.Add(BitmapFrame.Create(source));
-                        encoder.QualityLevel = 100;
-                        encoder.Save(fileStream);
+                        return new BitmapImage(new Uri(Info.Path));
                     }
-                }
-                Uri u = new Uri(Path.Combine(Path.GetDirectoryName(System.Windows.Forms.Application.ExecutablePath), "IconCache/" + Info.Type.Substring(1) + size.ToString() + ".jpg"));
-                return new BitmapImage(u);
-                /*if (icon == null || Info.Type == "")
-                    return new BitmapImage(new Uri("http://icons.iconarchive.com/icons/gakuseisean/radium/256/file-icon.png"));
-                if (!File.Exists("IconCache/" + Info.Type.Substring(1) + ".png"))
-                {
-                    FileStream s = File.OpenWrite("IconCache/" + Info.Type.Substring(1) + ".png");
-                    icon.(s);
-                    s.Close();
-                }
-                Uri u = new Uri(Path.Combine(Path.GetDirectoryName(System.Windows.Forms.Application.ExecutablePath), "IconCache/" + Info.Type.Substring(1) + ".png"));
-                return new BitmapImage(u);*/
+                    catch { return null; }
             }
+            if (!File.Exists("IconCache/" + Info.Type.BaseExtension + size.ToString() + ".jpg"))
+            {
+                var s = _iconConverter.GetImage(Info.Path, size);
+                BitmapSource source = s as BitmapSource;
+                using (FileStream fileStream = new FileStream("IconCache/" + Info.Type.BaseExtension + size.ToString() + ".jpg", FileMode.Create))
+                {
+                    JpegBitmapEncoder encoder = new JpegBitmapEncoder();
+                    encoder.Frames.Add(BitmapFrame.Create(source));
+                    encoder.QualityLevel = 100;
+                    encoder.Save(fileStream);
+                }
+            }
+            Uri u = new Uri(Path.Combine(Path.GetDirectoryName(System.Windows.Forms.Application.ExecutablePath), "IconCache/" + Info.Type.BaseExtension + size.ToString() + ".jpg"));
+            return new BitmapImage(u);
         }
 
         private string GetDriveType(DriveFileSystemInfo info)
@@ -2485,8 +2771,17 @@ namespace CairoExplorer
                 return "CD Rom";
             return info.Drive.DriveType.ToString();
         }
-        public string Size { get; set; }
-        public double ByteSize { get; set; }
+        public string Size { get; private set; }
+        private double _byteSize = 0;
+        public double ByteSize
+        {
+            get { return _byteSize; }
+            set
+            {
+                _byteSize = value;
+                Size = CairoExplorerWindow.GetFileSize(_byteSize / CairoExplorerWindow.ByteCount);
+            }
+        }
     }
 
     public class ExtraGridViewColumn : GridViewColumn
@@ -2502,6 +2797,7 @@ namespace CairoExplorer
     {
         public static bool ShowHiddenFilesAndFolders = false;
         public static bool DetailedThumbnailView = false;
+        public static bool ShowThumbnailNames = true;
         public static bool OpenFoldersInNewWindow = true;
         public static bool ShowExtensions = false;
         public static double FadeInTime = 0.25;
@@ -2509,14 +2805,106 @@ namespace CairoExplorer
         public static double FontSize = 12;
         public static FontStretch FontStretch = FontStretches.UltraCondensed;
         public static string FontName = "Segoe UI";
-        public static Brush TextColorBrush = new SolidColorBrush(Colors.Black);
-        public static Color ItemBackColor1 = (Color)ColorConverter.ConvertFromString("#FFEEF7FA");
-        public static Color ItemBackColor2 = (Color)ColorConverter.ConvertFromString("#00FFFFFF");
+        public static Brush TextColorBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF292728")/*Colors.Black*/);
+        public static Brush InvertTextColorBrush = new SolidColorBrush(Colors.White);
+        public static Brush SelectedTextColorBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFE05A37"));
+        public static Brush NonSelectedItemTextColorBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF9A9693")/*Colors.Black*/);
+        public static Color ItemBackColor1 = Colors.Transparent;//(Color)ColorConverter.ConvertFromString("#FFEEF7FA");
+        public static Color ItemBackColor2 = Colors.Transparent;//(Color)ColorConverter.ConvertFromString("#00FFFFFF");
     }
 
     #endregion
 
     #region Helper classes
+
+    public class GridLengthAnimation : AnimationTimeline
+    {
+        /// <summary>
+        /// Returns the type of object to animate
+        /// </summary>
+        public override Type TargetPropertyType
+        {
+            get
+            {
+                return typeof(GridLength);
+            }
+        }
+
+        /// <summary>
+        /// Creates an instance of the animation object
+        /// </summary>
+        /// <returns>Returns the instance of the GridLengthAnimation</returns>
+        protected override System.Windows.Freezable CreateInstanceCore()
+        {
+            return new GridLengthAnimation();
+        }
+
+        /// <summary>
+        /// Dependency property for the From property
+        /// </summary>
+        public static readonly DependencyProperty FromProperty = DependencyProperty.Register("From", typeof(GridLength),
+                typeof(GridLengthAnimation));
+
+        /// <summary>
+        /// CLR Wrapper for the From depenendency property
+        /// </summary>
+        public GridLength From
+        {
+            get
+            {
+                return (GridLength)GetValue(GridLengthAnimation.FromProperty);
+            }
+            set
+            {
+                SetValue(GridLengthAnimation.FromProperty, value);
+            }
+        }
+
+        /// <summary>
+        /// Dependency property for the To property
+        /// </summary>
+        public static readonly DependencyProperty ToProperty = DependencyProperty.Register("To", typeof(GridLength),
+                typeof(GridLengthAnimation));
+
+        /// <summary>
+        /// CLR Wrapper for the To property
+        /// </summary>
+        public GridLength To
+        {
+            get
+            {
+                return (GridLength)GetValue(GridLengthAnimation.ToProperty);
+            }
+            set
+            {
+                SetValue(GridLengthAnimation.ToProperty, value);
+            }
+        }
+
+        /// <summary>
+        /// Animates the grid let set
+        /// </summary>
+        /// <param name="defaultOriginValue">The original value to animate</param>
+        /// <param name="defaultDestinationValue">The final value</param>
+        /// <param name="animationClock">The animation clock (timer)</param>
+        /// <returns>Returns the new grid length to set</returns>
+        public override object GetCurrentValue(object defaultOriginValue,
+            object defaultDestinationValue, AnimationClock animationClock)
+        {
+            double fromVal = ((GridLength)GetValue(GridLengthAnimation.FromProperty)).Value;
+            //check that from was set from the caller
+            if (fromVal == 1)
+                //set the from as the actual value
+                fromVal = ((GridLength)defaultDestinationValue).Value;
+
+            double toVal = ((GridLength)GetValue(GridLengthAnimation.ToProperty)).Value;
+
+            if (fromVal > toVal)
+                return new GridLength((1 - animationClock.CurrentProgress.Value) * (fromVal - toVal) + toVal, GridUnitType.Star);
+            else
+                return new GridLength(animationClock.CurrentProgress.Value * (toVal - fromVal) + fromVal, GridUnitType.Star);
+        }
+    }
 
     [StructLayout(LayoutKind.Sequential)]
     public struct MinMaxInfo

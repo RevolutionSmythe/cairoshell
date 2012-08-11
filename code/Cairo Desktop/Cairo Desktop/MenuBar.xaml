@@ -5,7 +5,7 @@
     WindowStyle="None"
     AllowsTransparency="True"
     Width="{DynamicResource {x:Static SystemParameters.MaximizedPrimaryScreenWidthKey}}"
-    Height="23"
+    Height="48"
     Top="0"
     BorderBrush="#AF707070"
     BorderThickness="0,0,0,1"
@@ -21,7 +21,7 @@
     Initialized="OnWindowInitialized"
     Closing="OnWindowClosing"
     SizeChanged="OnWindowResize"
-    MaxHeight="23">
+    MaxHeight="48">
     <Window.Background>
         <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
             <GradientStop Color="#8F4a4a4a" Offset="1.0" />
@@ -35,6 +35,7 @@
                 <ResourceDictionary Source="Cairo.xaml" />
             </ResourceDictionary.MergedDictionaries>
             <local:Settings x:Key="settings" />
+            <control:BoolTovisibilityConverter x:Key="BoolVisConverter" />
             <Style x:Key="InnerProgramsListStyle"
                 TargetType="ItemsControl">
                 <Setter Property="ItemTemplate">
@@ -115,7 +116,7 @@
                         Style="{DynamicResource CairoMenuItemStyle}"
                         Click="OpenLogoffBox" />
                 </MenuItem>
-                <MenuItem Header="Programs"
+                <!--<MenuItem Header="Programs"
                     Style="{DynamicResource CairoMenuItemStyle}"
                     ItemContainerStyle="{DynamicResource CairoMenuItemContainerStyle}" TextBlock.FontFamily="./Resources/#Segoe UI Semibold">
                     <ScrollViewer MaxHeight="600"
@@ -196,9 +197,24 @@
                     <MenuItem Header="Recycle Bin"
                         Style="{DynamicResource CairoMenuItemStyle}"
                         Click="OpenRecycleBin" />
-                </MenuItem>
+                </MenuItem>-->
             </Menu>
         </StackPanel>
+        <ListView HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch"
+                    x:Name="TasksList">
+            <ListView.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal"
+                                Margin="0"></StackPanel>
+                </ItemsPanelTemplate>
+            </ListView.ItemsPanel>
+            <ListView.ItemTemplate>
+                <DataTemplate>
+                    <control:TaskButton Visibility="{Binding Path=ShowInTaskbar, Converter={StaticResource BoolVisConverter}}" />
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
         <StackPanel Orientation="Horizontal"
             DockPanel.Dock="Right"
             VerticalAlignment="Top"
@@ -294,7 +310,7 @@
             </Menu>
         </StackPanel>
         <!-- Last item added to DockPanel fills the remaining space! -->
-        <control:StacksContainer x:Name="stacksContainer"
-            Background="Transparent" />
+        <!--<control:StacksContainer x:Name="stacksContainer"
+            Background="Transparent" />-->
     </DockPanel>
 </Window>

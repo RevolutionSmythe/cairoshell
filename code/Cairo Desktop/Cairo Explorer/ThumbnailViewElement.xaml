@@ -4,22 +4,22 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              mc:Ignorable="d" 
-             d:DesignHeight="200" d:DesignWidth="200">
-    <Grid Height="200" HorizontalAlignment="Left" Name="grid1" VerticalAlignment="Top" Width="200">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="2*" />
-            <RowDefinition Height="120*" />
-            <RowDefinition Height="8*" />
-            <RowDefinition Height="Auto" MinHeight="14" />
-            <RowDefinition Height="Auto" MinHeight="14" />
-            <RowDefinition Height="Auto" MinHeight="14" />
-            <RowDefinition Height="28*" />
-        </Grid.RowDefinitions>
+             d:DesignHeight="186" d:DesignWidth="200">
+    <Grid Height="186" HorizontalAlignment="Left" Name="grid1" VerticalAlignment="Top" Width="200">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="40*" />
-            <ColumnDefinition Width="120*" />
-            <ColumnDefinition Width="40*" />
+            <ColumnDefinition Width="40" />
+            <ColumnDefinition Width="120*" MinWidth="40" />
+            <ColumnDefinition Width="40" />
         </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="2" />
+            <RowDefinition Height="{Binding ElementName=grid1, Path=ColumnDefinitions[1].Width}" />
+            <RowDefinition Height="8" />
+            <RowDefinition Height="Auto" MinHeight="14" />
+            <RowDefinition Height="Auto" MinHeight="14" />
+            <RowDefinition Height="Auto" MinHeight="14" />
+            <RowDefinition Height="Auto" MinHeight="14" />
+        </Grid.RowDefinitions>
         <Image Name="Image" HorizontalAlignment="Center" Stretch="Fill" VerticalAlignment="Top" Grid.Column="1" Grid.Row="1" />
         <TextBlock Grid.Column="1" Grid.Row="3" TextWrapping="WrapWithOverflow" Name="Name" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"/>
         <TextBlock Grid.Column="1" Grid.Row="4" Name="Description" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"/>

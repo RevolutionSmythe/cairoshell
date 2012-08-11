@@ -44,17 +44,17 @@
   <PropertyGroup>
     <StartupObject>CairoExplorer.App</StartupObject>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <PlatformTarget>x64</PlatformTarget>
+    <OutputPath>bin\x64\Debug\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <PlatformTarget>x64</PlatformTarget>
+    <OutputPath>bin\x64\Release\</OutputPath>
+  </PropertyGroup>
   <ItemGroup>
-    <Reference Include="DwmWrapper, Version=6.0.5700.16384, Culture=neutral, PublicKeyToken=c33f7e84a1a61922, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>.\DwmWrapper.dll</HintPath>
-    </Reference>
-    <Reference Include="Interop.IWshRuntimeLibrary, Version=1.0.0.0, Culture=neutral, processorArchitecture=x86">
-      <SpecificVersion>False</SpecificVersion>
-      <EmbedInteropTypes>True</EmbedInteropTypes>
-      <HintPath>..\Build\Debug\Interop.IWshRuntimeLibrary.dll</HintPath>
-    </Reference>
-    <Reference Include="PresentationFramework.Aero" />
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
     <Reference Include="System" />
     <Reference Include="System.Core">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
@@ -65,10 +65,9 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xaml" />
     <Reference Include="System.Xml" />
     <Reference Include="WindowsBase" />
-    <Reference Include="PresentationCore" />
-    <Reference Include="PresentationFramework" />
   </ItemGroup>
   <ItemGroup>
     <ApplicationDefinition Include="App.xaml">
@@ -190,14 +189,6 @@
     </Resource>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Cairo Desktop\Cairo Desktop.csproj">
-      <Project>{F0383E91-6ADC-4016-9E21-D3DC0FFC55FF}</Project>
-      <Name>Cairo Desktop</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Kent.Boogaart.Windows.Controls\Kent.Boogaart.Windows.Controls.csproj">
-      <Project>{F16BE042-5856-4825-949C-C7B60E7F1A17}</Project>
-      <Name>Kent.Boogaart.Windows.Controls</Name>
-    </ProjectReference>
     <ProjectReference Include="..\PreviewApplication\PreviewApplication.csproj">
       <Project>{D0E5B8D0-C807-4D09-947F-0DEA321569C0}</Project>
       <Name>PreviewApplication</Name>
@@ -208,6 +199,25 @@
   </ItemGroup>
   <ItemGroup>
     <Resource Include="Resources\dropDownArrow.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Resources\backNew.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <COMReference Include="IWshRuntimeLibrary">
+      <Guid>{F935DC20-1CF0-11D0-ADB9-00C04FD58A0B}</Guid>
+      <VersionMajor>1</VersionMajor>
+      <VersionMinor>0</VersionMinor>
+      <Lcid>0</Lcid>
+      <WrapperTool>tlbimp</WrapperTool>
+      <Isolated>False</Isolated>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+    </COMReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="UI_RES\disk.png" />
+    <Resource Include="UI_RES\file-icon.png" />
+    <Resource Include="UI_RES\Folder-Closed-icon.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

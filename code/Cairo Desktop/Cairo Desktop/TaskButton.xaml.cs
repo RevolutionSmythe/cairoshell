@@ -17,6 +17,7 @@ using System.Windows.Threading;
 using System.IO;
 using System.Windows.Markup;
 using System.Runtime.InteropServices;
+using ManagedWinapi.Windows;
 
 namespace CairoDesktop
 {
@@ -49,83 +50,86 @@ namespace CairoDesktop
 
         private void btn_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            var windowObject = this.DataContext as CairoDesktop.ApplicationWindow;
+            var windowObject = this.DataContext as ExtendedSystemWindow;
             if (windowObject != null)
             {
-                MessageBox.Show(windowObject.State.ToString());
-                if (windowObject.State != CairoDesktop.ApplicationWindow.WindowState.Inactive)
-                    windowObject.Minimize();
+                if (windowObject.WindowState == System.Windows.Forms.FormWindowState.Minimized)
+                {
+                    if (windowObject.Enabled)
+                        windowObject.WindowState = System.Windows.Forms.FormWindowState.Maximized;
+                    else
+                        windowObject.WindowState = System.Windows.Forms.FormWindowState.Normal;
+                    windowObject.Enabled = true;
+                }
                 else
                 {
-                    windowObject.BringToFront();
+                    windowObject.Enabled = windowObject.WindowState == System.Windows.Forms.FormWindowState.Maximized;
+                    windowObject.WindowState = System.Windows.Forms.FormWindowState.Minimized;
                 }
             }
         }
 
         private void Min_Click(object sender, RoutedEventArgs e)
         {
-            var windowObject = this.DataContext as CairoDesktop.ApplicationWindow;
+            var windowObject = this.DataContext as ExtendedSystemWindow;
             if (windowObject != null)
-            {
-                windowObject.Minimize();
-            }
+                windowObject.WindowState = System.Windows.Forms.FormWindowState.Minimized;
         }
 
         private void Max_Click(object sender, RoutedEventArgs e)
         {
-            var windowObject = this.DataContext as CairoDesktop.ApplicationWindow;
+            var windowObject = this.DataContext as ExtendedSystemWindow;
             if (windowObject != null)
-                windowObject.BringToFront();
+                windowObject.WindowState = System.Windows.Forms.FormWindowState.Maximized;
         }
 
         private void Close_Click (object sender, RoutedEventArgs e)
         {
-            var windowObject = this.DataContext as CairoDesktop.ApplicationWindow;
+            var windowObject = this.DataContext as ExtendedSystemWindow;
             if (windowObject != null)
-            {
-                int handle = FindWindow (null, WinTitle.Text);
-
-                SendMessage (handle, WM_COMMAND, WM_CLOSE, 0);
-            }
+                windowObject.SendClose();
         }
 
         private void Force_Close_Click (object sender, RoutedEventArgs e)
         {
-            var windowObject = this.DataContext as CairoDesktop.ApplicationWindow;
+            var windowObject = this.DataContext as ExtendedSystemWindow;
             if (windowObject != null)
-            {
-                System.Diagnostics.Process[] ps = System.Diagnostics.Process.GetProcesses ();
-                foreach (System.Diagnostics.Process p in ps)
-                {
-                    if (p.MainWindowHandle == windowObject.Handle)
-                        p.Kill ();//Kill it
-                }
-            }
+                windowObject.Process.Kill ();//Kill it
         }
 
         private void Hide_Click (object sender, RoutedEventArgs e)
         {
-            var windowObject = this.DataContext as CairoDesktop.ApplicationWindow;
-            if (windowObject != null && windowObject.Handle != IntPtr.Zero && 
-                windowObject.TasksService != null)
-            {
-                //Remove us from the windows
-                windowObject.TasksService.Windows.Remove (windowObject);
-            }
         }
 
         private void Add_To_Menu_Click (object sender, RoutedEventArgs e)
         {
-            var windowObject = this.DataContext as CairoDesktop.ApplicationWindow;
+            var windowObject = this.DataContext as ExtendedSystemWindow;
             if (windowObject != null)
             {
-                System.Diagnostics.Process process = Cairo.WindowsHooksWrapper.NativeMethods.GetProcess (windowObject.Handle);
-                AppGrabber.ApplicationInfo info = new AppGrabber.ApplicationInfo (process.MainWindowTitle, process.MainModule.FileName, null);
+                AppGrabber.ApplicationInfo info = new AppGrabber.ApplicationInfo (windowObject.Process.MainWindowTitle, windowObject.Process.MainModule.FileName, null);
                 info.Icon = info.GetAssociatedIcon ();
                 AppGrabber.Category c = AppGrabber.AppGrabber.Instance.CategoryList.GetCategory ("Uncategorized");
                 c.Add (info);
                 AppGrabber.AppGrabber.Instance.CategoryList.Remove (c);
                 AppGrabber.AppGrabber.Instance.CategoryList.Add (c);
+            }
+        }
+
+        private void btn_MouseDown_1(object sender, MouseButtonEventArgs e)
+        {
+            var windowObject = this.DataContext as ExtendedSystemWindow;
+            if (windowObject != null)
+            {
+                if (windowObject.WindowState == System.Windows.Forms.FormWindowState.Minimized)
+                {
+                    if (windowObject.Enabled)
+                        windowObject.WindowState = System.Windows.Forms.FormWindowState.Maximized;
+                    else
+                        windowObject.WindowState = System.Windows.Forms.FormWindowState.Normal;
+                    windowObject.Enabled = true;
+                }
+                windowObject.TopMost = true;
+                windowObject.TopMost = false;
             }
         }
 	}

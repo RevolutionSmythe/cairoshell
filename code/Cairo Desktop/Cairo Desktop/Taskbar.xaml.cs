@@ -62,37 +62,14 @@ namespace CairoDesktop
 
         private void Desktop_Click (object sender, RoutedEventArgs e)
         {
-            foreach (ApplicationWindow w in (TasksList.DataContext as WindowsTasksService).Windows)
+            foreach (var w in WindowsTasksService.Windows)
             {
-                if (w.Handle != IntPtr.Zero)
-                {
-                    w.Minimize ();//Minimize all others (except for us)
-                }
+                w.WindowState = System.Windows.Forms.FormWindowState.Minimized;
             }
         }
 
         private void Window_Loaded (object sender, RoutedEventArgs e)
         {
-        }
-
-        internal void EnableAppNames ()
-        {
-            var ListViewStyle1 = Resources["ListViewStyle1"];
-            this.TasksList.Style = (Style)ListViewStyle1;
-            foreach (ApplicationWindow w in (TasksList.DataContext as WindowsTasksService).Windows)
-            {
-                w.ShowName ();
-            }
-        }
-
-        internal void DisableAppNames ()
-        {
-            var ListViewStyle2 = Resources["ListViewStyle2"];
-            this.TasksList.Style = (Style)ListViewStyle2;
-            foreach (ApplicationWindow w in (TasksList.DataContext as WindowsTasksService).Windows)
-            {
-                w.HideName ();
-            }
         }
     }
 }

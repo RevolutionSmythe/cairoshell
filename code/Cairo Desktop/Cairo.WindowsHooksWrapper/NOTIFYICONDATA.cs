@@ -7,25 +7,29 @@
     /// Notify icon data structure type
     /// </summary>
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    public struct NOTIFYICONDATA
+    public class NOTIFYICONDATA
     {
-        public int cbSize;
-        public IntPtr hWnd;
+        [MarshalAs(UnmanagedType.U4)]
+        public uint cbSize;
+        [MarshalAs(UnmanagedType.I4, SizeConst = 4)]
+        public int hWnd;
+        [MarshalAs(UnmanagedType.U4, SizeConst = 4)]
         public uint uID;
+        [MarshalAs(UnmanagedType.U4, SizeConst = 4)]
         public uint uFlags;
+        [MarshalAs(UnmanagedType.U4, SizeConst = 4)]
         public uint uCallbackMessage;
-        public IntPtr hIcon;
+        [MarshalAs(UnmanagedType.I4, SizeConst = 4)]
+        public int hIcon;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
         public string szTip;
         public int dwState;
         public int dwStateMask;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
         public string szInfo;
-        public uint uVersion;  // used with NIM_SETVERSION, values 0, 3 and 4
+        public int uTimeoutOrVersion;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)]
         public string szInfoTitle;
         public int dwInfoFlags;
-        public Guid guidItem;
-        public IntPtr hBalloonIcon;
-    }    
+    }
 }

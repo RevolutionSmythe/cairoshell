@@ -179,7 +179,7 @@ LPWSTR GetWindowName(HWND windowHandle)
 
 HICON GetWindowIcon(HWND windowHandle)
 {
-	DWORD dwReturn = GetClassLong(windowHandle, GCL_HICON);
+	DWORD dwReturn = GetClassLong(windowHandle, -14);
 	return (HICON)dwReturn;
 }
 

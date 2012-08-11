@@ -39,26 +39,12 @@ namespace CairoExplorer
             _caller = caller;
 
             Name.Text = file.Info.Name;
-            Type.Text = file.Type;
+            Type.Text = file.Type.BaseExtension;
             Size.Text = file.Size;
-            DateModified.Text = "Last Modified " + file.Info.LastWriteTime.ToFileDateTime();
-            Title.Text = file.Type == "Folder" ? "Folder" : "File";
-            string ext = file.Info.Type;
-            switch (ext)
-            {
-                case ".jpg":
-                case ".jpeg":
-                case ".tiff":
-                case ".tif":
-                case ".gif":
-                case ".bmp":
-                case ".png":
-                    Icon.Source = new BitmapImage(new Uri(file.Info.FullName));
-                    break;
-                default:
-                    Icon.Source = file.Icon;
-                    break;
-            }
+            DateModified.Text = "Last Modified " + file.Info.DateModified.ToFileDateTime();
+            Title.Text = file.Type.Folder ? "Folder" : "File";
+            Icon.Source = file.Icon;
+
             if(Window.IsActive)
                 Show();
         }
@@ -120,7 +106,7 @@ namespace CairoExplorer
         {
             if (_file != null)
             {
-                CairoExplorerWindow.OpenItem(_file.Info.FullName, _caller as CairoExplorerWindow, Settings.OpenFoldersInNewWindow);
+                CairoExplorerWindow.OpenItem(_file.Info.Path, _caller as CairoExplorerWindow, Settings.OpenFoldersInNewWindow);
                 Close_btn_MouseUp(sender, null);
             }
         }
@@ -253,25 +239,18 @@ namespace CairoExplorer
             }
             if (path != null)
             {
-                p.CurrentPath = path.Info.FullName;
-                if (path.IsFolder)
-                    CairoExplorerWindow.AsyncGetSizeOfDirectory(path.Info.FullName, path, delegate(WrapperFileSystemInfo file, double size, object param)
+                p.CurrentPath = path.Info.Path;
+                if (!path.Type.File)
+                    CairoExplorerWindow.AsyncGetSizeOfDirectory(path.Info.Path, path, delegate(WrapperFileSystemInfo file, double size, object param)
                     {
                         Application.Current.Dispatcher.Invoke(new Action(delegate()
                         {
                             file.ByteSize = size;
-                            file.Size = CairoExplorerWindow.GetFileSize(size / CairoExplorerWindow.ByteCount);
-                            if(p.CurrentPath == file.Info.FullName)
+                            if(p.CurrentPath == file.Info.Path)
                                 p.InitWithFile(file, caller);
                         }));
                     });
-                else if(!path.IsDrive && !path.IsSpecial)
-                {
-                    path.ByteSize = CairoExplorerWindow.GetSizeOf(path.Info.FullName);
-                    path.Size = CairoExplorerWindow.GetFileSize(path.ByteSize);
-                    p.InitWithFile(path, caller);
-                }
-                else
+                 else
                     p.InitWithFile(path, caller);
             }
         }

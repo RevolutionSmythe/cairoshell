@@ -7,6 +7,7 @@ using System.Windows.Forms;
 using System.Windows;
 using System.Collections.ObjectModel;
 using DR = System.Drawing;
+using ManagedWinapi.Windows;
 
 namespace CairoDesktop
 {
@@ -54,17 +55,16 @@ namespace CairoDesktop
         {
             try
             {
-                Windows.Clear ();
+                Windows = GetAllToplevelWindows();
                 _HookWin = new NativeWindowEx();
                 _HookWin.CreateHandle(new CreateParams());
-                
-                SetTaskmanWindow(_HookWin.Handle);
+
                 //'Register to receive shell-related events
-                //SetTaskmanWindow(hookWin.Handle)
+                SetTaskmanWindow(_HookWin.Handle);
+                WM_SHELLHOOKMESSAGE = RegisterWindowMessage("SHELLHOOK");
                 RegisterShellHookWindow(_HookWin.Handle);
 
                 //'Assume no error occurred
-                WM_SHELLHOOKMESSAGE = RegisterWindowMessage("SHELLHOOK");
                 _HookWin.MessageReceived += ShellWinProc;
 
                 SetMinimizedMetrics();
@@ -73,95 +73,10 @@ namespace CairoDesktop
                 int msg = RegisterWindowMessage("TaskbarCreated");
                 //SendMessage(new IntPtr(0xffff), msg, IntPtr.Zero, IntPtr.Zero);
                 SendMessage (GetDesktopWindow (), 0x0400, IntPtr.Zero, IntPtr.Zero);
-
-                //var win = new ApplicationWindow (IntPtr.Zero, this);
-                //Windows.Add (win);//Add the goto desktop item
-                //Note: superseeded by the desktop button (left side)
-                GetOpenWindows ();
             }
             catch (Exception ex)
             {
                 Debug.Print(ex.Message);
-            }
-        }
-
-        [DllImport ("user32")]
-        [return: MarshalAs (UnmanagedType.Bool)]
-        public static extern bool EnumChildWindows (IntPtr window, EnumWindowProc callback, IntPtr i);
-
-        /// <summary>
-        /// Returns a list of child windows
-        /// </summary>
-        /// <param name="parent">Parent of the windows to return</param>
-        /// <returns>List of child windows</returns>
-        public static List<IntPtr> GetChildWindows (IntPtr parent)
-        {
-            List<IntPtr> result = new List<IntPtr> ();
-            GCHandle listHandle = GCHandle.Alloc (result);
-            try
-            {
-                EnumWindowProc childProc = new EnumWindowProc (EnumWindow);
-                EnumChildWindows (parent, childProc, GCHandle.ToIntPtr (listHandle));
-            }
-            finally
-            {
-                if (listHandle.IsAllocated)
-                    listHandle.Free ();
-            }
-            return result;
-        }
-
-        /// <summary>
-        /// Callback method to be used when enumerating windows.
-        /// </summary>
-        /// <param name="handle">Handle of the next window</param>
-        /// <param name="pointer">Pointer to a GCHandle that holds a reference to the list to fill</param>
-        /// <returns>True to continue the enumeration, false to bail</returns>
-        private static bool EnumWindow (IntPtr handle, IntPtr pointer)
-        {
-            GCHandle gch = GCHandle.FromIntPtr (pointer);
-            List<IntPtr> list = gch.Target as List<IntPtr>;
-            if (list == null)
-            {
-                throw new InvalidCastException ("GCHandle Target could not be cast as List<IntPtr>");
-            }
-            list.Add (handle);
-            //  You can modify this to check to see if you want to cancel the operation, then return a null here
-            return true;
-        }
-
-        /// <summary>
-        /// Delegate for the EnumChildWindows method
-        /// </summary>
-        /// <param name="hWnd">Window handle</param>
-        /// <param name="parameter">Caller-defined variable; we use it for a pointer to our list</param>
-        /// <returns>True to continue enumerating, false to bail.</returns>
-        public delegate bool EnumWindowProc (IntPtr hWnd, IntPtr parameter);
-        public void GetOpenWindows ()
-        {
-            //Run through all the processes and see whether we can find anything that we need to add already
-            Process[] procs = Process.GetProcesses ();
-            foreach (Process proc in procs)
-            {
-                if (proc.MainWindowHandle != IntPtr.Zero)//If the main window isn't null, its a GUI window
-                {
-                    var win = new ApplicationWindow (proc.MainWindowHandle, this);
-                    if(win.Title != "" && win.ShowInTaskbar)//Make sure that it isn't supposed to be hidden
-                        Windows.Add (win);
-                    else if (!win.ShowInTaskbar)
-                    {
-                        List<IntPtr> childHandles = GetChildWindows (proc.MainWindowHandle);
-                        foreach (IntPtr childHandle in childHandles)
-                        {
-                            win = new ApplicationWindow (childHandle, this);
-                            if (win.Title != "" && win.ShowInTaskbar)//Make sure that it isn't supposed to be hidden
-                            {
-                                Windows.Add (win);
-                                break;
-                            }
-                        }
-                    }
-                }
             }
         }
 
@@ -205,42 +120,21 @@ namespace CairoDesktop
             {
                 try
                 {
-                    var win = new ApplicationWindow(msg.LParam, this);
-
+                    /*var win = Windows.FirstOrDefault((w) => w.HWnd == msg.LParam);
+                    if (win == null && msg.LParam == IntPtr.Zero)
+                        win = SystemWindow.DesktopWindow;*/
                     lock (this._windowsLock)
                     {
                         switch (msg.WParam.ToInt32())
                         {
                             case HSHELL_WINDOWCREATED:
-                                Trace.WriteLine("Created: " + msg.LParam.ToString());
-                                if(win.Title != "")
-                                    Windows.Add(win);
-                                break;
-
                             case HSHELL_WINDOWDESTROYED:
-                                Trace.WriteLine("Destroyed: " + msg.LParam.ToString());
-                                if (this.Windows.Contains(win))
-                                    this.Windows.Remove(win);
-
-                                break;
-
                             case HSHELL_WINDOWREPLACING:
                             case HSHELL_WINDOWREPLACED:
-                                Trace.WriteLine("Replaced: " + msg.LParam.ToString());
-                                if (this.Windows.Contains(win))
-                                {
-                                    GetRealWindow (msg, ref win);
-                                    win.State = ApplicationWindow.WindowState.Inactive;
-                                }
-                                else
-                                {
-                                    win.State = ApplicationWindow.WindowState.Inactive;
-                                    if (win.Title != "")
-                                        Windows.Add (win);
-                                }
+                                Windows = GetAllToplevelWindows();
                                 break;
 
-                            case HSHELL_WINDOWACTIVATED:
+                            /*case HSHELL_WINDOWACTIVATED:
                             case HSHELL_RUDEAPPACTIVATED:
                                 Trace.WriteLine("Activated: " + msg.LParam.ToString());
 
@@ -282,7 +176,7 @@ namespace CairoDesktop
                                         Windows.Add (win);
                                 }
                                 break;
-
+                                */
                             case HSHELL_ACTIVATESHELLWINDOW:
                                 Trace.WriteLine("Activeate shell window called.");
                                 break;
@@ -313,7 +207,7 @@ namespace CairoDesktop
                             //     break;
 
                             default:
-                                Trace.WriteLine("Uknown called. " + msg.Msg.ToString());
+                                Trace.WriteLine("Unknown called. " + msg.Msg.ToString());
                                 break;
                         }
                     }
@@ -326,9 +220,10 @@ namespace CairoDesktop
             }
         }
 
-        private void GetRealWindow (System.Windows.Forms.Message msg, ref ApplicationWindow win)
+        private ObservableCollection<ExtendedSystemWindow> GetAllToplevelWindows()
         {
-            win = this.Windows.First (wnd => wnd.Handle == msg.LParam);
+            return new ObservableCollection<ExtendedSystemWindow>(SystemWindow.AllToplevelWindows.Where((w) => w.Visible && w.Title != "").
+                ToList().ConvertAll < ExtendedSystemWindow>((w) => new ExtendedSystemWindow(w.HWnd)));
         }
 
         private void OnRedraw(IntPtr windowHandle)
@@ -363,20 +258,12 @@ namespace CairoDesktop
         [DllImport("user32.dll")]
         public static extern bool SystemParametersInfo (SPI uiAction, uint uiParam, IntPtr pvParam, SPIF fWinIni);
 
-        public ObservableCollection<ApplicationWindow> Windows
+        public static ObservableCollection<ExtendedSystemWindow> Windows
         {
-            get
-            {
-                return base.GetValue(windowsProperty) as ObservableCollection<ApplicationWindow>;
-            }
-            set
-            {
-                SetValue(windowsProperty, value);
-            }
+            get;
+            set;
         }
 
-        private static DependencyProperty windowsProperty = DependencyProperty.Register("Windows", typeof(ObservableCollection<ApplicationWindow>), typeof(WindowsTasksService), new PropertyMetadata(new ObservableCollection<ApplicationWindow>()));
-        
         [Flags]
         public enum SPIF
         {
@@ -476,5 +363,72 @@ namespace CairoDesktop
 		        public IntPtr hwnd;
 		        public RECT rc;
             }
+    }
+
+    public class ExtendedSystemWindow : SystemWindow
+    {
+        public System.Drawing.Icon Icon
+        {
+            /*get 
+            {
+                try
+                {
+                    if (Image == null)
+                        return null;
+                }
+                catch { return null; }
+                return (System.Drawing.Bitmap)Image;
+            }*/
+            get
+            {
+                if (this.HWnd == IntPtr.Zero)
+                    return null;
+                System.Drawing.Icon ico = null;
+                try
+                {
+                    var ex = new IconExtractor(Process.MainModule.FileName);
+                    int count = ex.IconCount;
+                    ico = ex.GetIcon(0);
+                    var icos = IconExtractor.SplitIcon(ico);
+                    return icos.OrderByDescending((i) => i.Height).First();
+                }
+                catch { }
+                uint iconHandle = GetIconForWindow();
+
+                try
+                {
+                    ico = System.Drawing.Icon.FromHandle(new IntPtr(iconHandle));
+                }
+                catch (Exception)
+                {
+                    ico = null;
+                }
+                return ico;
+            }
+        }
+
+        [DllImport("user32.dll")]
+        private static extern uint SendMessageTimeout(IntPtr hWnd, uint messageId, uint wparam, uint lparam, uint timeoutFlags, uint timeout, ref uint retval);
+
+        [DllImport("user32.dll")]
+        private static extern uint GetClassLong(IntPtr handle, int longClass);
+
+        private uint GetIconForWindow()
+        {
+            uint hIco = 0;
+            SendMessageTimeout(this.HWnd, 127, 2, 0, 2, 200, ref hIco);
+            int GCL_HICON = -14;
+            if (hIco == 0)
+            {
+                hIco = GetClassLong(this.HWnd, GCL_HICON);
+            }
+
+            return hIco;
+        }
+
+        public ExtendedSystemWindow(IntPtr hWnd)
+            : base(hWnd)
+        {
+        }
     }
 }

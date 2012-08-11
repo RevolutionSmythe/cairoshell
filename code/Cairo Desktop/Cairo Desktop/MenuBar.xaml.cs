@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using System.IO;
 using System.Diagnostics;
+using System.Linq;
 using System.Net;
 using System.Text;
 using System.Windows;
@@ -19,6 +20,9 @@ using System.Resources;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using System.Windows.Markup;
+using System.Collections.ObjectModel;
+using System.Collections.Generic;
+using IWshRuntimeLibrary;
 
 namespace CairoDesktop
 {
@@ -31,6 +35,12 @@ namespace CairoDesktop
 
         private String configFilePath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)+@"\CairoAppConfig.xml";
         private String fileManger = Environment.ExpandEnvironmentVariables(Properties.Settings.Default.FileManager);
+
+        public List<ExtendedSystemWindow> TaskBarItems
+        {
+            get;
+            protected set;
+        }
 
         public MenuBar()
         {
@@ -47,8 +57,8 @@ namespace CairoDesktop
                 borderBrushColor.Color = Color.FromArgb(135, 0, 0, 0);
                 this.BorderBrush = borderBrushColor;
                 this.BorderThickness = new Thickness(0, 0, 0, 0);
-                this.Height = 22;
-                this.MaxHeight = 22;
+                this.Height = 48;
+                this.MaxHeight = 48;
                 this.Background = Brushes.Transparent;
                 BitmapImage CairoMenuIconBlack = new BitmapImage();
                 CairoMenuIconBlack.BeginInit();
@@ -61,6 +71,28 @@ namespace CairoDesktop
                 CairoSearchMenuIconBlack.EndInit();
                 CairoSearchMenuIcon.Source = CairoSearchMenuIconBlack;
             }
+
+            TaskBarItems = new List<ExtendedSystemWindow>();
+            WindowsTasksService service = new WindowsTasksService();
+            foreach(string path in TaskbarPinnedItems.GetPinnedTaskBarItems())
+            {
+                var item = CairoDesktop.WindowsTasksService.Windows.FirstOrDefault((w) =>
+                    {
+                        try
+                        {
+                            WshShell shell = new WshShell();
+                            IWshShortcut link = (IWshShortcut)shell.CreateShortcut(path);
+                            return w.Process.MainModule.FileName == link.TargetPath;
+                        }
+                        catch{ }
+                        return false;
+                    });
+                if (item != null)
+                    TaskBarItems.Add(item);
+            }
+            TaskBarItems.AddRange(WindowsTasksService.Windows);
+
+            TasksList.ItemsSource = TaskBarItems;
 
             this.CommandBindings.Add(new CommandBinding(CustomCommands.OpenSearchResult, ExecuteOpenSearchResult));
 
@@ -92,10 +124,6 @@ namespace CairoDesktop
                 }, this.Dispatcher);
 
             }
-            if (System.Environment.OSVersion.Version.Major < 6)
-            {
-                PlacesDownloadsItem.Visibility = Visibility.Collapsed;
-            }
             // ---------------------------------------------------------------- //
 
             InitializeClock();
@@ -106,9 +134,6 @@ namespace CairoDesktop
             {
                 ql.ShowInMenu = false;
             }
-
-            //Set Programs Menu to use appGrabber's ProgramList as its source
-            categorizedProgramsList.ItemsSource = appGrabber.CategoryList;
         }
 
         ///
@@ -277,6 +302,7 @@ namespace CairoDesktop
 //"Not for redistribution."
                 , "Cairo Desktop Environment", MessageBoxButton.OK, MessageBoxImage.None);
         } 
+
         private void OpenLogoffBox(object sender, RoutedEventArgs e)
         {
             bool? LogoffChoice = CairoMessage.ShowOkCancel("You will lose all unsaved documents and be logged off.", "Are you sure you want to log off now?", "Resources/logoffIcon.png", "Log Off", "Cancel");
@@ -288,6 +314,7 @@ namespace CairoDesktop
             {
             }
         }
+
         private void OpenRebootBox(object sender, RoutedEventArgs e)
         {
             bool? RebootChoice = CairoMessage.ShowOkCancel("You will lose all unsaved documents and your computer will restart.", "Are you sure you want to restart now?", "Resources/restartIcon.png", "Restart", "Cancel");
@@ -299,6 +326,7 @@ namespace CairoDesktop
             {
             }
         }
+
         private void OpenShutDownBox(object sender, RoutedEventArgs e)
         {
             bool? ShutdownChoice = CairoMessage.ShowOkCancel("You will lose all unsaved documents and your computer will turn off.", "Are you sure you want to shut down now?", "Resources/shutdownIcon.png", "Shut Down", "Cancel");
@@ -310,6 +338,7 @@ namespace CairoDesktop
             {
             }
         }
+
         private void OpenCloseCairoBox(object sender, RoutedEventArgs e)
         {
             bool? CloseCairoChoice = CairoMessage.ShowOkCancel("You will need to reboot or use the start menu shortcut in order to run Cairo again.", "Are you sure you want to exit Cairo?", "Resources/cairoIcon.png", "Exit Cairo", "Cancel");
@@ -326,65 +355,80 @@ namespace CairoDesktop
             {
             }
         }
+
         private void OpenMyDocs(object sender, RoutedEventArgs e)
         {
             System.Diagnostics.Process.Start(fileManger, Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
         }
+
         private void OpenMyPics(object sender, RoutedEventArgs e)
         {
             System.Diagnostics.Process.Start(fileManger, Environment.GetFolderPath(Environment.SpecialFolder.MyPictures));
         }
+
         private void OpenMyMusic(object sender, RoutedEventArgs e)
         {
             System.Diagnostics.Process.Start(fileManger, Environment.GetFolderPath(Environment.SpecialFolder.MyMusic));
         }
+
         private void OpenDownloads(object sender, RoutedEventArgs e)
         {
             string userprofile = System.Environment.GetEnvironmentVariable("USERPROFILE");
             string downloadsPath = userprofile + @"\Downloads\";
             System.Diagnostics.Process.Start(fileManger, downloadsPath);
         }
+
         private void OpenMyComputer(object sender, RoutedEventArgs e)
         {
             System.Diagnostics.Process.Start(fileManger, "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}");
         }
+
         private void OpenUserFolder(object sender, RoutedEventArgs e)
         {
             System.Diagnostics.Process.Start(fileManger, System.Environment.GetEnvironmentVariable("USERPROFILE"));
         }
+
         private void OpenProgramFiles(object sender, RoutedEventArgs e)
         {
             System.Diagnostics.Process.Start(fileManger, System.Environment.GetEnvironmentVariable("ProgramFiles"));
         }
+
         private void OpenRecycleBin(object sender, RoutedEventArgs e)
         {
             System.Diagnostics.Process.Start(fileManger, "::{645FF040-5081-101B-9F08-00AA002F954E}");
         }
+
         private void OpenControlPanel(object sender, RoutedEventArgs e)
         {
             System.Diagnostics.Process.Start("control.exe");
         }
+
         private void OpenTaskManager(object sender, RoutedEventArgs e)
         {
             System.Diagnostics.Process.Start("taskmgr.exe");
         }
+
         private void OpenTimeDateCPL(object sender, RoutedEventArgs e)
         {
             System.Diagnostics.Process.Start("timedate.cpl");
         }
+
         private void SysSleep(object sender, RoutedEventArgs e)
         {
             NativeMethods.Sleep();
         }
+
         private void InitCairoSettingsWindow(object sender, RoutedEventArgs e)
         {
             CairoSettingsWindow window = new CairoSettingsWindow();
             window.Show();
         }
+
         private void InitAppGrabberWindow(object sender, RoutedEventArgs e)
         {
             appGrabber.ShowDialog();
         }
+
         private void LaunchShortcut(object sender, RoutedEventArgs e)
         {
             Button item = (Button)sender;

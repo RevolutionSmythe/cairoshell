@@ -95,13 +95,13 @@
 
         private void ShowAppNameOnTaskbar_Click (object sender, RoutedEventArgs e)
         {
-            bool ShowAppNameOnTaskbar = Properties.Settings.Default.ShowAppNameOnTaskbar;
+           /* bool ShowAppNameOnTaskbar = Properties.Settings.Default.ShowAppNameOnTaskbar;
             if (Startup.TaskbarWindow == null)
                 return;
             if (ShowAppNameOnTaskbar == true)
                 Startup.TaskbarWindow.EnableAppNames ();
             else
-                Startup.TaskbarWindow.DisableAppNames ();
+                Startup.TaskbarWindow.DisableAppNames ();*/
         }
 
         private void EnableMenuBarShadow_Click(object sender, RoutedEventArgs e)

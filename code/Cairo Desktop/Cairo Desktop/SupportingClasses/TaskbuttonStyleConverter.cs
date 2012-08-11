@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Windows.Data;
 using System.Windows;
+using ManagedWinapi.Windows;
 
 namespace CairoDesktop
 {
@@ -25,24 +26,21 @@ namespace CairoDesktop
                 return fxStyle;
             }
 
-            ApplicationWindow.WindowState winState = ApplicationWindow.WindowState.Unknown;
-            EnumUtility.TryCast<ApplicationWindow.WindowState>(values[1], out winState, ApplicationWindow.WindowState.Inactive);
-            
-            switch (winState)
-            {
-                case ApplicationWindow.WindowState.Active:
+            //switch (winState)
+            //{
+            //    case ApplicationWindow.WindowState.Active:
                     fxStyle = fxElement.FindResource("CairoTaskbarButtonActiveStyle");
-                    break;
-
-                case ApplicationWindow.WindowState.Flashing:
-                    fxStyle = fxElement.FindResource("CairoTaskbarButtonFlashingStyle");
-                    break;
-
-                case ApplicationWindow.WindowState.Hidden:
-                    fxStyle = fxElement.FindResource("CairoTaskbarButtonActiveStyle");
-                    //fxStyle = fxElement.FindResource("CairoTaskbarButtonHiddenStyle");
-                    break;
-            }
+            //        break;
+            //
+            //    case ApplicationWindow.WindowState.Flashing:
+            //        fxStyle = fxElement.FindResource("CairoTaskbarButtonFlashingStyle");
+            //        break;
+            //
+            //    case ApplicationWindow.WindowState.Hidden:
+            //        fxStyle = fxElement.FindResource("CairoTaskbarButtonActiveStyle");
+            //        //fxStyle = fxElement.FindResource("CairoTaskbarButtonHiddenStyle");
+            //        break;
+            //}
 
             return fxStyle;
         }

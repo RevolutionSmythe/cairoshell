@@ -88,8 +88,8 @@ namespace CairoDesktop
 
         private bool SysTrayCallback(uint message, NOTIFYICONDATA nicData)
         {
-            TrayIcon trayIcon = new TrayIcon(nicData.hWnd);
-            if(nicData.uID!=null) trayIcon.UID = nicData.uID;
+            TrayIcon trayIcon = new TrayIcon((IntPtr)nicData.hWnd);
+            if(nicData.uID!=null) trayIcon.UID = (uint)nicData.uID;
 
             lock (_lockObject)
             {
@@ -103,15 +103,15 @@ namespace CairoDesktop
                         trayIcon.Title = nicData.szTip;
                         try
                         {
-                            trayIcon.Icon = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(nicData.hIcon, Int32Rect.Empty, System.Windows.Media.Imaging.BitmapSizeOptions.FromEmptyOptions());
+                            trayIcon.Icon = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon((IntPtr)nicData.hIcon, Int32Rect.Empty, System.Windows.Media.Imaging.BitmapSizeOptions.FromEmptyOptions());
                         }
                         catch
                         {
                             trayIcon.Icon = null;
                         }
-                        trayIcon.HWnd = nicData.hWnd;
-                        trayIcon.UID = nicData.uID;
-                        trayIcon.CallbackMessage = nicData.uCallbackMessage;
+                        trayIcon.HWnd = (IntPtr)nicData.hWnd;
+                        trayIcon.UID = (uint)nicData.uID;
+                        trayIcon.CallbackMessage = (uint)nicData.uCallbackMessage;
 
                         TrayIcons.Add(trayIcon);
                         break;
@@ -141,14 +141,14 @@ namespace CairoDesktop
                             if (TrayIcons.Contains(trayIcon))
                             {
                                 exists = true;
-                                trayIcon = TrayIcons.Single(i => i.HWnd == nicData.hWnd && i.UID == nicData.uID);
+                                trayIcon = TrayIcons.Single(i => i.HWnd == (IntPtr)nicData.hWnd && i.UID == nicData.uID);
                             }
 
                             trayIcon.Title = nicData.szTip;
-                            trayIcon.Icon = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(nicData.hIcon, Int32Rect.Empty, System.Windows.Media.Imaging.BitmapSizeOptions.FromEmptyOptions());
-                            trayIcon.HWnd = nicData.hWnd;
-                            trayIcon.UID = nicData.uID;
-                            trayIcon.CallbackMessage = nicData.uCallbackMessage;
+                            trayIcon.Icon = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon((IntPtr)nicData.hIcon, Int32Rect.Empty, System.Windows.Media.Imaging.BitmapSizeOptions.FromEmptyOptions());
+                            trayIcon.HWnd = (IntPtr)nicData.hWnd;
+                            trayIcon.UID = (uint)nicData.uID;
+                            trayIcon.CallbackMessage = (uint)nicData.uCallbackMessage;
 
                             if (!exists)
                             {
