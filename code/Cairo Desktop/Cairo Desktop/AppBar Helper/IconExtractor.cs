@@ -97,7 +97,7 @@ namespace CairoDesktop
 
             public ResourceName(IntPtr lpName)
             {
-                if (((uint)lpName >> 16) == 0) // #define IS_INTRESOURCE(_r) ((((ULONG_PTR)(_r)) >> 16) == 0)
+                if (((ulong)lpName >> 16) == 0) // #define IS_INTRESOURCE(_r) ((((ULONG_PTR)(_r)) >> 16) == 0)
                 {
                     this.Id = lpName;
                     this.Name = null;

@@ -365,15 +365,15 @@ namespace CairoExplorer
             userName = userName.Split('\\')[1];
             _favorites.Add(new Favorite() { Name = "Home", Path = "Favorites" });
             _favorites.Add(new Favorite() { Name = "My Computer", Path = "//" });
-            _favorites.Add(new Favorite() { Name = "Network Places", Path = "Network" });
-            _favorites.Add(new Favorite() { Name = userName, Path = "C:/Users/" + userName });
-            _favorites.Add(new Favorite() { Name = "Desktop", Path = "C:/Users/" + userName + "/Desktop" });
-            _favorites.Add(new Favorite() { Name = "Documents", Path = "C:/Users/" + userName + "/Documents" });
-            _favorites.Add(new Favorite() { Name = "Downloads", Path = "C:/Users/" + userName + "/Downloads" });
-            _favorites.Add(new Favorite() { Name = "Dropbox", Path = "C:/Users/" + userName + "/Dropbox" });
-            _favorites.Add(new Favorite() { Name = "Music", Path = "C:/Users/" + userName + "/Music" });
-            _favorites.Add(new Favorite() { Name = "Pictures", Path = "C:/Users/" + userName + "/Pictures" });
-            _favorites.Add(new Favorite() { Name = "Videos", Path = "C:/Users/" + userName + "/Videos" });
+            _favorites.Add(new Favorite() { Name = "Network Places", Path=Environment.GetFolderPath(Environment.SpecialFolder.NetworkShortcuts) });
+            _favorites.Add(new Favorite() { Name = userName, Path = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) });
+            _favorites.Add(new Favorite() { Name = "Desktop", Path = Environment.GetFolderPath(Environment.SpecialFolder.Desktop) });
+            _favorites.Add(new Favorite() { Name = "Documents", Path = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) });
+            _favorites.Add(new Favorite() { Name = "Downloads", Path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),"Downloads") });
+            _favorites.Add(new Favorite() { Name = "Dropbox", Path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Dropbox") });
+            _favorites.Add(new Favorite() { Name = "Music", Path = Environment.GetFolderPath(Environment.SpecialFolder.MyMusic) });
+            _favorites.Add(new Favorite() { Name = "Pictures", Path = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures) });
+            _favorites.Add(new Favorite() { Name = "Videos", Path = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos) });
             BuildFavoritesPanel();
 
             FavoritesList.ContextMenu = new ContextMenu();
@@ -2749,6 +2749,8 @@ namespace CairoExplorer
             }
             if (!File.Exists("IconCache/" + Info.Type.BaseExtension + size.ToString() + ".jpg"))
             {
+                if (!Directory.Exists("IconCache/"))
+                    Directory.CreateDirectory("IconCache/");
                 var s = _iconConverter.GetImage(Info.Path, size);
                 BitmapSource source = s as BitmapSource;
                 using (FileStream fileStream = new FileStream("IconCache/" + Info.Type.BaseExtension + size.ToString() + ".jpg", FileMode.Create))
