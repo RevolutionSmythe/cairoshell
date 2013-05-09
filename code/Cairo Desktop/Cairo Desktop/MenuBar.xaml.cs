@@ -1,28 +1,30 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.IO;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net;
+using System.Resources;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
+using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Markup;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Threading;
-using System.Windows.Controls.Primitives;
+using CairoDesktop.Interop;
+using IWshRuntimeLibrary;
 // Helper code - thanks to Greg Franklin - MSFT
 using SHAppBarMessage1.Common;
-using CairoDesktop.Interop;
-using System.Resources;
-using System.Windows.Input;
-using System.Windows.Media.Imaging;
-using System.Windows.Markup;
-using System.Collections.ObjectModel;
-using System.Collections.Generic;
-using IWshRuntimeLibrary;
+using Windows.UI.Notifications;
+using Microsoft.WindowsAPICodePack.Shell;
 
 namespace CairoDesktop
 {
@@ -30,12 +32,12 @@ namespace CairoDesktop
     {
         private WindowInteropHelper helper;
         private IntPtr handle;
-        public AppGrabber.AppGrabber appGrabber = AppGrabber.AppGrabber.Instance;
         private int appbarMessageId = -1;
+        private const string EXPLORER_PATH = "C:\\Windows\\explorer.exe";
 
-        private String configFilePath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)+@"\CairoAppConfig.xml";
+        private String configFilePath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + @"\CairoAppConfig.xml";
 
-        public List<ExtendedSystemWindow> TaskBarItems
+        public ObservableCollection<TaskBarItem> TaskBarItems
         {
             get;
             protected set;
@@ -43,12 +45,12 @@ namespace CairoDesktop
 
         public MenuBar()
         {
+            this.DataContext = this;
+            TaskBarItems = new ObservableCollection<TaskBarItem>();
             this.InitializeComponent();
 
             WindowsTasksService.WindowsChanged += WindowsTasksService_WindowsChanged;
             BuildTaskBarItems();
-
-            this.CommandBindings.Add(new CommandBinding(CustomCommands.OpenSearchResult, ExecuteOpenSearchResult));
 
             // Show the search button only if the service is running
             if (WindowsServices.QueryStatus("WSearch") == ServiceStatus.Running)
@@ -56,7 +58,7 @@ namespace CairoDesktop
                 ObjectDataProvider vistaSearchProvider = new ObjectDataProvider();
                 vistaSearchProvider.ObjectType = typeof(VistaSearchProvider.VistaSearchProviderHelper);
                 CairoSearchMenu.DataContext = vistaSearchProvider;
-            } 
+            }
             else
             {
                 CairoSearchMenu.Visibility = Visibility.Collapsed;
@@ -81,13 +83,6 @@ namespace CairoDesktop
             // ---------------------------------------------------------------- //
 
             InitializeClock();
-
-            //Set Quick Launch category to not show in menu
-            AppGrabber.Category ql = appGrabber.CategoryList.GetCategory("Quick Launch");
-            if (ql != null)
-            {
-                ql.ShowInMenu = false;
-            }
         }
 
         void WindowsTasksService_WindowsChanged(object sender, EventArgs e)
@@ -99,29 +94,40 @@ namespace CairoDesktop
         {
             Dispatcher.BeginInvoke(new Action(() =>
             {
-                TaskBarItems = new List<ExtendedSystemWindow>();
-                foreach (string path in TaskbarPinnedItems.GetPinnedTaskBarItems())
+                Dictionary<string, TaskBarItem> items = new Dictionary<string, TaskBarItem>();
+                int Position = 0;
+                foreach (string linkPath in TaskbarPinnedItems.GetPinnedTaskBarItems())
                 {
-                    if (!path.EndsWith(".lnk"))
-                        continue;
-                    WshShell shell = new WshShell();
-                    IWshShortcut link = (IWshShortcut)shell.CreateShortcut(path);
-                    var item = CairoDesktop.WindowsTasksService.Windows.FirstOrDefault((w) =>
+                    ShellFile link = ShellFile.FromFilePath(linkPath);
+                    if (!link.IsLink)
                     {
-                        try
-                        {
-                            return Cairo.WindowsHooksWrapper.NativeMethods.GetProcessPath(w.HWnd) == link.TargetPath;
-                        }
-                        catch { }
-                        return false;
-                    });
-                    if (item != null)
-                        TaskBarItems.Add(item);
-                }
-                foreach (var win in WindowsTasksService.Windows.Where((w) => !TaskBarItems.Any((t) => t.HWnd == w.HWnd)))
-                    TaskBarItems.Add(win);
+                        link.Dispose();
+                        continue;
+                    }
 
-                TasksList.ItemsSource = TaskBarItems;
+                    string displayName = link.GetDisplayName(DisplayNameType.Default);
+                    string path = link.Properties.System.Link.TargetParsingPath.Value;
+                    if (System.IO.File.Exists(path))
+                        items.Add(path, new TaskBarItem(path, null, displayName, Imaging.ExtractIcon(path, IntPtr.Zero), Position++));
+                    else
+                        items.Add(EXPLORER_PATH, new TaskBarItem(EXPLORER_PATH, null, "File Explorer", Imaging.ExtractIcon(EXPLORER_PATH, IntPtr.Zero), Position++));
+                    link.Dispose();
+                }
+                foreach (var win in WindowsTasksService.Windows.Where((w) => w.Enabled && w.ClassName != "Progman"))
+                {
+                    if (!items.ContainsKey(win.Process.MainModule.FileName))
+                        items.Add(win.Process.MainModule.FileName, new TaskBarItem(win.Process.MainModule.FileName, null, win.Title, win.Icon, Position++));
+                    items[win.Process.MainModule.FileName]._openWindows.Add(win);
+                }
+                foreach (var itm in items.Values)
+                {
+                    TaskBarItem existingWindow = null;
+                    if ((existingWindow = TaskBarItems.FirstOrDefault((esw) => esw.FullPath == itm.FullPath)) != null)
+                        itm.CopyFrom(existingWindow);
+                }
+                TaskBarItems.Clear();
+                foreach (var itm in items.Values.OrderByDescending((itm) => -1 * itm.Position))
+                    TaskBarItems.Add(itm);
             }));
         }
 
@@ -264,24 +270,27 @@ namespace CairoDesktop
         private void LaunchProgram(object sender, RoutedEventArgs e)
         {
             MenuItem item = (MenuItem)sender;
-            try {
+            try
+            {
                 System.Diagnostics.Process.Start(item.CommandParameter.ToString());
-            } catch {
+            }
+            catch
+            {
                 CairoMessage.Show("The file could not be found.  If you just removed this program, try removing it from the App Grabber to make the icon go away.", "Oops!", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-        
+
         private void AboutCairo(object sender, RoutedEventArgs e)
         {
             CairoMessage.Show(
                 // Replace next line with the Version
                 "Version 0.0.1.12 - Milestone 3 Preview 3"
-                +"\nCopyright © 2007-2011 Cairo Development Team and community contributors.  All rights reserved."
+                + "\nCopyright © 2007-2011 Cairo Development Team and community contributors.  All rights reserved."
                 // +
                 // Replace next line with the ID Key
-//"Not for redistribution."
+                //"Not for redistribution."
                 , "Cairo Desktop Environment", MessageBoxButton.OK, MessageBoxImage.None);
-        } 
+        }
 
         private void OpenLogoffBox(object sender, RoutedEventArgs e)
         {
@@ -361,18 +370,13 @@ namespace CairoDesktop
             NativeMethods.Sleep();
         }
 
-        private void InitAppGrabberWindow(object sender, RoutedEventArgs e)
-        {
-            appGrabber.ShowDialog();
-        }
-
         private void LaunchShortcut(object sender, RoutedEventArgs e)
         {
             Button item = (Button)sender;
             string ItemLoc = item.CommandParameter.ToString();
             System.Diagnostics.Process.Start(ItemLoc);
         }
-        
+
         /// <summary>
         /// Retrieves the users ID key from a compiled resources file.
         /// </summary>
@@ -394,5 +398,86 @@ namespace CairoDesktop
 
             return resKey ?? idKey;
         }
-   }
+    }
+
+    public class TaskBarItem
+    {
+        public List<ExtendedSystemWindow> _openWindows = new List<ExtendedSystemWindow>();
+        private System.Drawing.Icon _icon;
+        public System.Drawing.Icon Icon
+        {
+            get
+            {
+                return _icon;
+            }
+        }
+
+        private string _title;
+        public string Title
+        {
+            get 
+            {
+                if (_openWindows.Count > 0)
+                    return _openWindows[0].Title;
+                return _title;
+            }
+        }
+
+        public int Position
+        {
+            get;
+            set;
+        }
+
+        public string FullPath
+        {
+            get;
+            protected set;
+        }
+
+        public TaskBarItem(string filePath, IEnumerable<ExtendedSystemWindow> windows, string title, System.Drawing.Icon icon, int predictedPosition)
+        {
+            _openWindows = new List<ExtendedSystemWindow>();
+            FullPath = filePath;
+            _title = title;
+            _icon = icon;
+            Position = predictedPosition;
+            if (windows != null && windows.Count() > 0)
+                _openWindows.AddRange(windows);
+        }
+
+        internal void CopyFrom(TaskBarItem existingWindow)
+        {
+            Position = existingWindow.Position;
+        }
+
+        public void Maximize()
+        {
+            var windowSelected = _openWindows[0];
+            windowSelected.WindowState = System.Windows.Forms.FormWindowState.Maximized;
+        }
+
+        public void CloseWindow()
+        {
+            var windowSelected = _openWindows[0];
+            windowSelected.SendClose();
+        }
+
+        public void Minimize()
+        {
+            var windowSelected = _openWindows[0];
+            windowSelected.WindowState = System.Windows.Forms.FormWindowState.Minimized;
+        }
+
+        public void ForceCloseWindow()
+        {
+            var windowSelected = _openWindows[0];
+            windowSelected.Process.Kill();//Kill it
+        }
+
+        internal void OpenNewWindow()
+        {
+            throw new NotImplementedException();
+        }
+    }
 }

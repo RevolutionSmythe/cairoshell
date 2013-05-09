@@ -39,7 +39,6 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Cairo.xaml" />
             </ResourceDictionary.MergedDictionaries>
-            <control:BoolTovisibilityConverter x:Key="BoolVisConverter" />
             <Style x:Key="InnerProgramsListStyle"
                 TargetType="ItemsControl">
                 <Setter Property="ItemTemplate">
@@ -59,15 +58,14 @@
                     </Setter.Value>
                 </Setter>
             </Style>
-            <control:BoolTovisibilityConverter x:Key="BoolToVisibilityConverter" />
-            <DataTemplate x:Key="CairoSearchResultsItemTemplate">
+            <!--<DataTemplate x:Key="CairoSearchResultsItemTemplate">
                 <MenuItem Command="control:CustomCommands.OpenSearchResult" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
             CommandParameter="{Binding}">
                     <MenuItem.Header>
                         <TextBlock Text="{Binding Path=Name}"/>
                     </MenuItem.Header>
                 </MenuItem>
-            </DataTemplate>
+            </DataTemplate>-->
         </ResourceDictionary>
     </Window.Resources>
     <DockPanel
@@ -92,9 +90,6 @@
                     <MenuItem Header="Task Manager"
                         Style="{DynamicResource CairoMenuItemStyle}"
                         Click="OpenTaskManager" />
-                    <MenuItem Header="App Grabber"
-                        Style="{DynamicResource CairoMenuItemStyle}"
-                        Click="InitAppGrabberWindow" />
                     <Separator Style="{DynamicResource CairoMenuSeparatorStyle}" />
                     <MenuItem Header="Windows Control Panel"
                         Style="{DynamicResource CairoMenuItemStyle}"
@@ -205,7 +200,7 @@
                   Height="44"
                   Background="Transparent"
                   ScrollViewer.CanContentScroll="False"
-                  BorderThickness="0"
+                  BorderThickness="0" ItemsSource="{Binding Path=TaskBarItems}"
                     x:Name="TasksList">
             <ListView.ItemsPanel>
                 <ItemsPanelTemplate>
@@ -215,7 +210,7 @@
             </ListView.ItemsPanel>
             <ListView.ItemTemplate>
                 <DataTemplate>
-                    <control:TaskButton Height="38" Width="44" Visibility="{Binding Path=ShowInTaskbar, Converter={StaticResource BoolVisConverter}}" ToolTip="{Binding Path=Title}" />
+                    <control:TaskButton Height="38" Width="44" ToolTip="{Binding Path=Title}" />
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>
@@ -317,8 +312,5 @@
                 </MenuItem>
             </Menu>
         </StackPanel>
-        <!-- Last item added to DockPanel fills the remaining space! -->
-        <!--<control:StacksContainer x:Name="stacksContainer"
-            Background="Transparent" />-->
     </DockPanel>
 </Window>

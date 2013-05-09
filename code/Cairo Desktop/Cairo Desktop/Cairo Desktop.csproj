@@ -82,8 +82,10 @@
   <PropertyGroup>
     <ApplicationManifest>Resources\CairoDesktop.manifest</ApplicationManifest>
   </PropertyGroup>
+  <PropertyGroup>
+    <TargetPlatformVersion>8.0</TargetPlatformVersion>
+  </PropertyGroup>
   <ItemGroup>
-    <Compile Include="AppBar Helper\IconExtractor.cs" />
     <Compile Include="AppBar Helper\TaskbarPinnedItems.cs" />
     <Compile Include="WindowsTasks\ApplicationWindow.cs" />
     <Compile Include="WindowsTasks\ICairoNotifyPropertyChanged.cs" />
@@ -99,6 +101,15 @@
       <HintPath>..\..\..\..\..\..\..\Users\asdfasdf\Documents\Visual Studio 2012\Projects\TestWindowManager\TestWindowManager\bin\ManagedWinapi.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.CSharp" />
+    <Reference Include="Microsoft.WindowsAPICodePack">
+      <HintPath>..\..\..\..\..\..\Users\Matthew Beardmore\Downloads\Windows API Code Pack 1.1\Windows API Code Pack 1.1\binaries\Microsoft.WindowsAPICodePack.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.WindowsAPICodePack.Shell">
+      <HintPath>..\..\..\..\..\..\Users\Matthew Beardmore\Downloads\Windows API Code Pack 1.1\Windows API Code Pack 1.1\binaries\Microsoft.WindowsAPICodePack.Shell.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.WindowsAPICodePack.ShellExtensions">
+      <HintPath>..\..\..\..\..\..\Users\Matthew Beardmore\Downloads\Windows API Code Pack 1.1\Windows API Code Pack 1.1\binaries\Microsoft.WindowsAPICodePack.ShellExtensions.dll</HintPath>
+    </Reference>
     <Reference Include="PostSharp.Core, Version=1.0.11.424, Culture=neutral, PublicKeyToken=b13fd38b8f9c99d7, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\Dependencies\PostSharp\PostSharp.Core.dll</HintPath>
@@ -135,6 +146,7 @@
     <Reference Include="UnhandledExceptionFilter">
       <HintPath>..\Build\UnhandledExceptionFilter.dll</HintPath>
     </Reference>
+    <Reference Include="Windows" />
     <Reference Include="WindowsBase">
       <RequiredTargetFramework>3.0</RequiredTargetFramework>
     </Reference>
@@ -161,22 +173,12 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
-    <Page Include="QuickLaunchButton.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
     <Compile Include="Sound\SoundAPI.cs" />
-    <Compile Include="SupportingClasses\KeyboardRegistration.cs" />
     <Compile Include="SystemTray.xaml.cs">
       <DependentUpon>SystemTray.xaml</DependentUpon>
     </Compile>
     <Compile Include="TaskButton.xaml.cs">
       <DependentUpon>TaskButton.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="QuickLaunchButton.xaml.cs">
-      <DependentUpon>QuickLaunchButton.xaml</DependentUpon>
     </Compile>
   </ItemGroup>
   <ItemGroup>
@@ -199,13 +201,6 @@
       <SubType>Designer</SubType>
     </Page>
     <None Include="Resources\CairoDesktop.manifest" />
-    <None Include="White.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </None>
     <Page Include="Desktop.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -221,12 +216,6 @@
     <Page Include="MenuBar.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="StacksContainer.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
@@ -247,19 +236,12 @@
     <Compile Include="DesktopIcons.xaml.cs">
       <DependentUpon>DesktopIcons.xaml</DependentUpon>
     </Compile>
-    <Compile Include="SupportingClasses\CustomCommands.cs" />
     <Compile Include="Desktop.xaml.cs">
       <DependentUpon>Desktop.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="DragDropHandler.cs" />
-    <Compile Include="AppBar Helper\NativeMethods.cs" />
-    <Compile Include="StacksContainer.xaml.cs">
-      <DependentUpon>StacksContainer.xaml</DependentUpon>
     </Compile>
     <Compile Include="SupportingClasses\BoolTovisibilityConverter.cs" />
     <Compile Include="SupportingClasses\IconConverter.cs" />
     <Compile Include="SupportingClasses\InvokingObservableCollection.cs" />
-    <Compile Include="SupportingClasses\NativeMethods.cs" />
     <Compile Include="SupportingClasses\SystemDirectory.cs" />
     <Compile Include="SupportingClasses\MessageBoxButtonConverter.cs" />
     <Compile Include="SupportingClasses\MessageBoxImageConverter.cs" />
@@ -396,10 +378,6 @@
     <ProjectReference Include="..\Cairo.WindowsHooksWrapper\Cairo.WindowsHooksWrapper.csproj">
       <Project>{79B5DDAC-5102-4B11-BFA1-B16D6F6FE661}</Project>
       <Name>Cairo.WindowsHooksWrapper</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\CairoDesktop.AppGrabber\CairoDesktop.AppGrabber.csproj">
-      <Project>{DE9674CC-507E-4049-9152-5C899B9F0939}</Project>
-      <Name>CairoDesktop.AppGrabber</Name>
     </ProjectReference>
     <ProjectReference Include="..\CairoDesktop.Interop\CairoDesktop.Interop.csproj">
       <Project>{233781C8-83E4-47A6-847E-FA7A31B1CC51}</Project>

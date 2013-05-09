@@ -88,16 +88,20 @@ namespace CairoDesktop
 
         private bool SysTrayCallback(uint message, NOTIFYICONDATA nicData)
         {
-            TrayIcon trayIcon = new TrayIcon((IntPtr)nicData.hWnd);
-            trayIcon.UID = (uint)nicData.uID;
+            Console.WriteLine(message + " - " + nicData.uID);
 
             lock (_lockObject)
             {
+                TrayIcon trayIcon;
                 switch ((NIM)message)
                 {
                     case NIM.NIM_ADD:
+                        trayIcon = new TrayIcon((IntPtr)nicData.hWnd);
+                        trayIcon.UID = (uint)nicData.uID;
+
                         // Ensure the icon doesn't already exist.
-                        if (TrayIcons.Contains(trayIcon)) return false;
+                        if (TrayIcons.Contains(trayIcon)) 
+                            return false;
 
                         // Add the icon.
                         trayIcon.Title = nicData.szTip;
@@ -113,20 +117,20 @@ namespace CairoDesktop
                         trayIcon.UID = (uint)nicData.uID;
                         trayIcon.CallbackMessage = (uint)nicData.uCallbackMessage;
 
+                        TrayIcon old = TrayIcons.FirstOrDefault(i => i.HWnd == (IntPtr)nicData.hWnd);
+                        if (old != null)
+                            TrayIcons.Remove(old);
                         TrayIcons.Add(trayIcon);
                         break;
 
                     case NIM.NIM_DELETE:
                         try
                         {
-                            if (!TrayIcons.Contains(trayIcon))
-                            {
-                                // Nothing to remove.
+                            TrayIcon oldTrayIcon = TrayIcons.FirstOrDefault(i => i.HWnd == (IntPtr)nicData.hWnd);
+                            if (oldTrayIcon != null)
+                                TrayIcons.Remove(oldTrayIcon);
+                            else
                                 return false;
-                            }
-
-                            // Woo! Using Linq to avoid iterating!
-                            TrayIcons.Remove(trayIcon);
                         }
                         catch (Exception ex)
                         {
@@ -137,23 +141,16 @@ namespace CairoDesktop
                     case NIM.NIM_MODIFY:
                         try
                         {
-                            bool exists = false;
-                            if (TrayIcons.Contains(trayIcon))
-                            {
-                                exists = true;
-                                trayIcon = TrayIcons.Single(i => i.HWnd == (IntPtr)nicData.hWnd && i.UID == nicData.uID);
-                            }
-
+                            trayIcon = TrayIcons.Single(i => i.HWnd == (IntPtr)nicData.hWnd);
+                            if (trayIcon == null)
+                                break;
                             trayIcon.Title = nicData.szTip;
                             trayIcon.Icon = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon((IntPtr)nicData.hIcon, Int32Rect.Empty, System.Windows.Media.Imaging.BitmapSizeOptions.FromEmptyOptions());
                             trayIcon.HWnd = (IntPtr)nicData.hWnd;
                             trayIcon.UID = (uint)nicData.uID;
                             trayIcon.CallbackMessage = (uint)nicData.uCallbackMessage;
-
-                            if (!exists)
-                            {
-                                TrayIcons.Add(trayIcon);
-                            }
+                            TrayIcons.Remove(trayIcon);
+                            TrayIcons.Add(trayIcon);
                         }
                         catch (Exception ex)
                         {

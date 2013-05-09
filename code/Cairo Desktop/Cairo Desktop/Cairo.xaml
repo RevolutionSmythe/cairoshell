@@ -607,14 +607,6 @@
             </Trigger>
         </Style.Triggers>
     </Style>
-    <DataTemplate x:Key="CairoSearchResultsItemTemplate">
-        <MenuItem Command="cairo:CustomCommands.OpenSearchResult" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
-            CommandParameter="{Binding}">
-            <MenuItem.Header>
-                <TextBlock Text="{Binding Path=Name}"/>
-            </MenuItem.Header>
-        </MenuItem>
-    </DataTemplate>
     <!-- CairoConfirmationBoxStyle -->
     <Style x:Key="CairoConfirmationBoxStyle"
         TargetType="{x:Type StackPanel}">
@@ -717,89 +709,6 @@
                             Margin="4,3,4,3"
                             Background="#40FFFFFF" />
                     </StackPanel>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
-    </Style>
-    <!-- Button Style for Quick Launch -->
-    <Style x:Key="CairoQuickLaunchButtonStyle"
-        TargetType="{x:Type Button}">
-        <Setter Property="OverridesDefaultStyle"
-            Value="true" />
-        <Setter Property="Width"
-            Value="24" />
-        <Setter Property="Height"
-            Value="26" />
-        <Setter Property="VerticalAlignment"
-            Value="Center" />
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="{x:Type Button}">
-                    <Border x:Name="Border"
-                        BorderThickness="1"
-                        Margin="0"
-                        Background="Transparent"
-                        BorderBrush="Transparent">
-                        <ContentPresenter Margin="2,2,2,0"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center" />
-                    </Border>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsMouseOver"
-                            Value="true">
-                            <Setter TargetName="Border"
-                                Property="Background">
-                                <Setter.Value>
-                                    <LinearGradientBrush StartPoint="0,0"
-                                EndPoint="0,1">
-                                        <GradientStop Color="#00FFFFFF"
-                                    Offset="1.0" />
-                                        <GradientStop Color="#1fFFFFFF"
-                                    Offset="0.0" />
-                                    </LinearGradientBrush>
-                                </Setter.Value>
-                            </Setter>
-                            <Setter TargetName="Border"
-                                Property="BorderBrush">
-                                <Setter.Value>
-                                    <LinearGradientBrush StartPoint="0,1"
-                                EndPoint="0,0">
-                                        <GradientStop Color="#4FFFFFFF"
-                                    Offset="1" />
-                                        <GradientStop Color="#0FFFFFFF"
-                                    Offset="0" />
-                                    </LinearGradientBrush>
-                                </Setter.Value>
-                            </Setter>
-                        </Trigger>
-                        <Trigger Property="IsPressed"
-                            Value="true">
-                            <Setter TargetName="Border"
-                                Property="Background">
-                                <Setter.Value>
-                                    <LinearGradientBrush StartPoint="0,1"
-                                EndPoint="0,0">
-                                        <GradientStop Color="#BA0054C9"
-                                    Offset="1.0" />
-                                        <GradientStop Color="#4F005CE4"
-                                    Offset="0.0" />
-                                    </LinearGradientBrush>
-                                </Setter.Value>
-                            </Setter>
-                            <Setter TargetName="Border"
-                                Property="BorderBrush">
-                                <Setter.Value>
-                                    <LinearGradientBrush StartPoint="0,1"
-                                EndPoint="0,0">
-                                        <GradientStop Color="#DF00aeff"
-                                    Offset="1" />
-                                        <GradientStop Color="#8F005A78"
-                                    Offset="0" />
-                                    </LinearGradientBrush>
-                                </Setter.Value>
-                            </Setter>
-                        </Trigger>
-                    </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>

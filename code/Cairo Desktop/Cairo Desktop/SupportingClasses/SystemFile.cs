@@ -144,7 +144,7 @@ namespace CairoDesktop
                 }
                 catch
                 {
-                    this.Icon = AppGrabber.WpfWin32ImageConverter.GetImageFromAssociatedIcon(this.FullName);
+                    this.Icon = Imaging.GetImageFromAssociatedIcon(this.FullName);
                 }
                 finally
                 {
@@ -157,8 +157,8 @@ namespace CairoDesktop
             } 
             else 
             {
-                // This will attempts to get the icon via AppGrabber - if it fails the default icon will be returned.
-                this.Icon = AppGrabber.WpfWin32ImageConverter.GetImageFromAssociatedIcon(this.FullName);
+                // if this fails the default icon will be returned.
+                this.Icon = Imaging.GetImageFromAssociatedIcon(this.FullName);
             }
         }
 

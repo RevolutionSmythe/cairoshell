@@ -8,21 +8,26 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows;
 using System.Drawing;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using CairoDesktop.Interop;
 
 namespace CairoDesktop
 {
+    /// <summary>
+    /// Used by XAML to convert images
+    /// </summary>
     [ValueConversion(typeof(System.Drawing.Icon), typeof(ImageSource))]
     public class IconConverter : IValueConverter
     {
-
         #region IValueConverter Members
 
         public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
-            if (value == null) return AppGrabber.WpfWin32ImageConverter.GetImageFromHIcon(IntPtr.Zero);
+            if (value == null) return Imaging.GetImageFromHIcon(IntPtr.Zero);
 
             if (value is Icon)
-                return AppGrabber.WpfWin32ImageConverter.GetImageFromHIcon((value as Icon).Handle);
+                return Imaging.GetImageFromHIcon((value as Icon).Handle);
             else
                 return Imaging.CreateBitmapSourceFromBitmap(value as Bitmap);
         }
@@ -36,6 +41,30 @@ namespace CairoDesktop
 
     public static class Imaging
     {
+        public static System.Drawing.Icon ExtractIcon(string fileName, IntPtr HWnd)
+        {
+            System.Drawing.Icon ico = null;
+
+            try
+            {
+                ico = Etier.IconHelper.IconReader.GetFileIcon(fileName, Etier.IconHelper.IconReader.IconSize.Large, false);
+                return ico;
+            }
+            catch { }
+            Debug.Write("Failed to get permissions to access process, falling back to small ico only.");
+            uint iconHandle = NativeMethods.GetIconForWindow(HWnd);
+
+            try
+            {
+                ico = System.Drawing.Icon.FromHandle(new IntPtr(iconHandle));
+            }
+            catch (Exception)
+            {
+                ico = null;
+            }
+            return ico;
+        }
+
         /// <summary>
         /// Converts Bitmap to BitmapSource
         /// </summary>
@@ -83,5 +112,107 @@ namespace CairoDesktop
             writable.Freeze();
             return writable;
         }
+
+        /// <summary>
+        /// Retrieves the Icon for the file name as an ImageSource
+        /// </summary>
+        /// <param name="filename">The filename of the file to query the Icon for.</param>
+        /// <returns>The icon as an ImageSource, otherwise a default image.</returns>
+        public static ImageSource GetImageFromAssociatedIcon(string filename)
+        {
+            BitmapSource bs = null;
+
+            try
+            {
+                // Disposes of icon automagically when done.
+                using (System.Drawing.Icon icon = System.Drawing.Icon.ExtractAssociatedIcon(filename))
+                {
+                    if (icon == null || icon.Handle == null)
+                    {
+                        return GetDefaultIcon();
+                    }
+
+                    bs = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(icon.Handle, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+                }
+            }
+            catch (Exception)
+            {
+                bs = GetDefaultIcon();
+            }
+
+            return bs;
+        }
+
+        /// <summary>
+        /// Retrieves the Icon for the Handle provided as an ImageSource.
+        /// </summary>
+        /// <param name="hIcon">The icon's handle (HICON).</param>
+        /// <returns>The Icon, or a default icon if not found.</returns>
+        public static ImageSource GetImageFromHIcon(IntPtr hIcon)
+        {
+            BitmapSource bs = null;
+            if (hIcon != IntPtr.Zero)
+            {
+                try
+                {
+                    bs = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(hIcon, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+                }
+                catch (Exception)
+                {
+                    bs = GetDefaultIcon();
+                }
+            }
+            else
+            {
+                bs = GetDefaultIcon();
+            }
+
+            return bs;
+        }
+
+        /// <summary>
+        /// Creates an empty bitmap source in the size of an Icon.
+        /// </summary>
+        /// <returns>Empty icon bitmap.</returns>
+        private static BitmapSource GenerateEmptyBitmapSource()
+        {
+            int width = 16;
+            int height = width;
+            int stride = width / 4;
+            byte[] pixels = new byte[height * stride];
+
+            return BitmapSource.Create(width, height, 96, 96, PixelFormats.Indexed1,
+                BitmapPalettes.WebPalette, pixels, stride);
+        }
+
+        /// <summary>
+        /// Gets the default icon from the resources.
+        /// If this fails (e.g. the resource is missing or corrupt) the empty icon is returned.
+        /// </summary>
+        /// <returns>The default icon as a BitmapSource.</returns>
+        public static BitmapSource GetDefaultIcon()
+        {
+            BitmapImage img = new BitmapImage();
+            try
+            {
+                img.BeginInit();
+                img.UriSource = new Uri("resources\\folderIcon.png", UriKind.RelativeOrAbsolute);
+                img.EndInit();
+            }
+            catch (Exception)
+            {
+                return GenerateEmptyBitmapSource();
+            }
+
+            return img;
+        }
+    }
+
+    /// <summary>
+    /// Provides static conversion methods to change Win32 Icons into ImageSources.
+    /// </summary>
+    public class WpfWin32ImageConverter
+    {
+        
     }
 }

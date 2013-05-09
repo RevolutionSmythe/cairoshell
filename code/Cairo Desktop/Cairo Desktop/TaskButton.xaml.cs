@@ -23,13 +23,6 @@ namespace CairoDesktop
 {
 	public partial class TaskButton
 	{
-        [DllImport("user32.dll")]
-        public static extern int FindWindow(string lpClassName, string lpWindowName);
-        [DllImport("user32.dll")]
-        public static extern int SendMessage(int hWnd, uint Msg, int wParam, int lParam);
-
-        public const int WM_COMMAND = 0x0112;
-        public const int WM_CLOSE = 0xF060; 
 		public TaskButton()
 		{
 			this.InitializeComponent();
@@ -37,73 +30,79 @@ namespace CairoDesktop
 
         private void btnClick(object sender, RoutedEventArgs e)
         {
-            var windowObject = this.DataContext as ExtendedSystemWindow;
+            var windowObject = this.DataContext as TaskBarItem;
             if (windowObject != null)
             {
-                if (windowObject.WindowState == System.Windows.Forms.FormWindowState.Minimized)
+                if (windowObject._openWindows.Count > 0)
                 {
-                    if (windowObject.Enabled)
-                        windowObject.WindowState = System.Windows.Forms.FormWindowState.Maximized;
+                    var windowSelected = windowObject._openWindows[0];
+                    if (windowSelected.WindowState == System.Windows.Forms.FormWindowState.Minimized)
+                    {
+                        if (windowSelected.RestoreMaximized)
+                            windowSelected.WindowState = System.Windows.Forms.FormWindowState.Maximized;
+                        else
+                            windowSelected.WindowState = System.Windows.Forms.FormWindowState.Normal;
+                        windowSelected.BringWindowToFront();
+                    }
                     else
-                        windowObject.WindowState = System.Windows.Forms.FormWindowState.Normal;
-                    windowObject.Enabled = true;
-                    windowObject.BringWindowToFront();
-                }
-                else
-                {
-                    windowObject.Enabled = windowObject.WindowState == System.Windows.Forms.FormWindowState.Maximized;
-                    windowObject.WindowState = System.Windows.Forms.FormWindowState.Minimized;
+                    {
+                        windowSelected.RestoreMaximized = windowSelected.WindowState == System.Windows.Forms.FormWindowState.Maximized;
+                        windowSelected.WindowState = System.Windows.Forms.FormWindowState.Minimized;
+                    }
                 }
             }
         }
 
         private void btn_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            var windowObject = this.DataContext as ExtendedSystemWindow;
+            var windowObject = this.DataContext as TaskBarItem;
             if (windowObject != null)
             {
-                if (windowObject.WindowState == System.Windows.Forms.FormWindowState.Minimized)
+                if (windowObject._openWindows.Count > 0)
                 {
-                    if (windowObject.Enabled)
-                        windowObject.WindowState = System.Windows.Forms.FormWindowState.Maximized;
+                    var windowSelected = windowObject._openWindows[0];
+                    if (windowSelected.WindowState == System.Windows.Forms.FormWindowState.Minimized)
+                    {
+                        if (windowSelected.RestoreMaximized)
+                            windowSelected.WindowState = System.Windows.Forms.FormWindowState.Maximized;
+                        else
+                            windowSelected.WindowState = System.Windows.Forms.FormWindowState.Normal;
+                    }
                     else
-                        windowObject.WindowState = System.Windows.Forms.FormWindowState.Normal;
-                    windowObject.Enabled = true;
-                }
-                else
-                {
-                    windowObject.Enabled = windowObject.WindowState == System.Windows.Forms.FormWindowState.Maximized;
-                    windowObject.WindowState = System.Windows.Forms.FormWindowState.Minimized;
+                    {
+                        windowSelected.RestoreMaximized = windowSelected.WindowState == System.Windows.Forms.FormWindowState.Maximized;
+                        windowSelected.WindowState = System.Windows.Forms.FormWindowState.Minimized;
+                    }
                 }
             }
         }
 
         private void Min_Click(object sender, RoutedEventArgs e)
         {
-            var windowObject = this.DataContext as ExtendedSystemWindow;
-            if (windowObject != null)
-                windowObject.WindowState = System.Windows.Forms.FormWindowState.Minimized;
+            var windowObject = this.DataContext as TaskBarItem;
+            if (windowObject != null && windowObject._openWindows.Count > 0)
+                windowObject.Minimize();
         }
 
         private void Max_Click(object sender, RoutedEventArgs e)
         {
-            var windowObject = this.DataContext as ExtendedSystemWindow;
-            if (windowObject != null)
-                windowObject.WindowState = System.Windows.Forms.FormWindowState.Maximized;
+            var windowObject = this.DataContext as TaskBarItem;
+            if (windowObject != null && windowObject._openWindows.Count > 0)
+                windowObject.Maximize();
         }
 
         private void Close_Click (object sender, RoutedEventArgs e)
         {
-            var windowObject = this.DataContext as ExtendedSystemWindow;
-            if (windowObject != null)
-                windowObject.SendClose();
+            var windowObject = this.DataContext as TaskBarItem;
+            if (windowObject != null && windowObject._openWindows.Count > 0)
+                windowObject.CloseWindow();
         }
 
         private void Force_Close_Click (object sender, RoutedEventArgs e)
         {
-            var windowObject = this.DataContext as ExtendedSystemWindow;
-            if (windowObject != null)
-                windowObject.Process.Kill ();//Kill it
+            var windowObject = this.DataContext as TaskBarItem;
+            if (windowObject != null && windowObject._openWindows.Count > 0)
+                windowObject.ForceCloseWindow();
         }
 
         private void Add_To_Menu_Click (object sender, RoutedEventArgs e)
@@ -114,8 +113,11 @@ namespace CairoDesktop
         {
         }
 
-        private void OpenNewInstance_Click_1(object sender, RoutedEventArgs e)
+        private void OpenNewInstance_Click(object sender, RoutedEventArgs e)
         {
+            var windowObject = this.DataContext as TaskBarItem;
+            if (windowObject != null && windowObject._openWindows.Count > 0)
+                windowObject.OpenNewWindow();
         }
 	}
 }

@@ -6,44 +6,15 @@ using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 using System.Drawing;
+using CairoDesktop.Interop;
 
 namespace CairoDesktop
 {
     public class NativeWindowEx : System.Windows.Forms.NativeWindow
     {
-        public delegate IntPtr WndProcDelegate(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
         public delegate void MessageReceivedEventHandler(System.Windows.Forms.Message m);
 
         public event MessageReceivedEventHandler MessageReceived;
-
-        [DllImport("user32.dll")]
-        private static extern int RegisterClassEx(ref WNDCLASSEX pcWndClassEx);
-
-        [DllImport("user32.dll")]
-        private static extern bool UnregisterClass(string lpClassname, IntPtr hInstance);
-
-        [DllImport("user32.dll")]
-        private static extern IntPtr GetModuleHandle(string filename);
-
-        [DllImport("user32.dll")]
-        private static extern IntPtr CreateWindowEx(int dwExStyle, string lpClassName, string lpWindowName, int dwStyle, int x, int y, int nWidth, int nHeight, IntPtr hwndParent, IntPtr hMenu, IntPtr hInstance, IntPtr lParam);
-
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
-        private struct WNDCLASSEX
-        {
-            public int cbSize; // Size in bytes of the WNDCLASSEX structure
-            public int style;	// Class style
-            public WndProcDelegate lpfnWndProc;// Pointer to the classes Window Procedure
-            public int cbClsExtra;// Number of extra bytes to allocate for class
-            public int cbWndExtra;// Number of extra bytes to allocate for window
-            public IntPtr hInstance;// Applications instance handle Class
-            public IntPtr hIcon;// Handle to the classes icon
-            public IntPtr hCursor;// Handle to the classes cursor
-            public IntPtr hbrBackground;// Handle to the classes background brush
-            public string lpszMenuName;// Resource name of class menu
-            public string lpszClassName;// Name of the Window Class
-            public IntPtr hIconSm;// Handle to the classes small icon
-        }
 
         protected override void WndProc(ref System.Windows.Forms.Message m)
         {
@@ -55,9 +26,9 @@ namespace CairoDesktop
 
         public void RegisterClass(ClassCreateParams ccp)
         {
-            WNDCLASSEX wc = new WNDCLASSEX()
+            NativeMethods.WNDCLASSEX wc = new NativeMethods.WNDCLASSEX()
             {
-                cbSize = Marshal.SizeOf(typeof(WNDCLASSEX)),
+                cbSize = Marshal.SizeOf(typeof(NativeMethods.WNDCLASSEX)),
                 lpszClassName = ccp.Name,
                 lpfnWndProc = ccp.WndProc,
                 style = (int)ccp.Style,
@@ -67,7 +38,7 @@ namespace CairoDesktop
                 hInstance = Marshal.GetHINSTANCE(this.GetType().Module)
             };
 
-            if (RegisterClassEx(ref wc) != 0)
+            if (NativeMethods.RegisterClassEx(ref wc) != 0)
             {
                 throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
             }
@@ -75,7 +46,7 @@ namespace CairoDesktop
                 
         public void UnregisterClassAPI(string name)
         {
-            if (!UnregisterClass(name, IntPtr.Zero))
+            if (!NativeMethods.UnregisterClass(name, IntPtr.Zero))
             {
                 throw new Win32Exception(Marshal.GetLastWin32Error());
             }
@@ -88,7 +59,7 @@ namespace CairoDesktop
 
         public void CreateHandle(CreateParamsEx cp)
         {
-            this.AssignHandle(CreateWindowEx(cp.ExStyle, cp.ClassName, cp.Caption, cp.Style, cp.X, cp.Y, cp.Width, cp.Height, cp.Parent, IntPtr.Zero, cp.hInstance, (IntPtr)cp.Param));
+            this.AssignHandle(NativeMethods.CreateWindowEx(cp.ExStyle, cp.ClassName, cp.Caption, cp.Style, cp.X, cp.Y, cp.Width, cp.Height, cp.Parent, IntPtr.Zero, cp.hInstance, (IntPtr)cp.Param));
         }
     }
     public class CreateParamsEx : System.Windows.Forms.CreateParams
@@ -112,7 +83,7 @@ namespace CairoDesktop
     {
         public ClassStyles Style { get; set; }
         public string Name { get; set; }
-        public NativeWindowEx.WndProcDelegate WndProc { get; set; }
+        public NativeMethods.WndProcDelegate WndProc { get; set; }
         public IntPtr BackgroundBrush { get; set; }
         public Icon Icon { get; set; }
         public Icon SmallIcon { get; set; }

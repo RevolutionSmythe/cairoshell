@@ -740,7 +740,12 @@ namespace CairoExplorer
                 int i = 0;
                 var item = FavoritesList.ItemsSource.Cast<Favorite>().FirstOrDefault((f) => 
                 {
-                    i++; return Directory.Exists(f.Path) ? Path.GetFullPath(f.Path) == Path.GetFullPath(path) : f.Path == path;
+                    i++;
+                    try
+                    {
+                        return Directory.Exists(f.Path) ? Path.GetFullPath(f.Path) == Path.GetFullPath(path) : f.Path == path;
+                    }
+                    catch { return f.Path == path; }
                 });
                 if (item != null)
                     (FavoritesList.ItemContainerGenerator.ContainerFromIndex(i-1) 

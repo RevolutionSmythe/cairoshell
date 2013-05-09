@@ -4,8 +4,8 @@
     using System.Diagnostics;
     using System.Windows;
     using Microsoft.Win32;
-    using CairoDesktop.SupportingClasses;
     using System.Windows.Interop;
+    using CairoDesktop.Interop;
 
     /// <summary>
     /// Handles the startup of the application, including ensuring that only a single instance is running.
@@ -92,13 +92,13 @@
             Int32 TOPMOST_FLAGS = 0x0001 | 0x0002;
             WindowInteropHelper menuBarHelper = new WindowInteropHelper (MenuBarWindow);
             MenuBarPtr = menuBarHelper.Handle;
-            CairoDesktop.SupportingClasses.NativeMethods.SetWindowPos (menuBarHelper.Handle, (IntPtr)CairoDesktop.SupportingClasses.NativeMethods.HWND_TOPMOST, 0, 0, 0, 0, TOPMOST_FLAGS);
+            NativeMethods.SetWindowPos (menuBarHelper.Handle, (IntPtr)NativeMethods.HWND_TOPMOST, 0, 0, 0, 0, TOPMOST_FLAGS);
 
             CairoDesktop.NativeWindowEx _HookWin = new CairoDesktop.NativeWindowEx();
             _HookWin.CreateHandle (new System.Windows.Forms.CreateParams ());
-            CairoDesktop.WindowsTasksService.SetTaskmanWindow (_HookWin.Handle);
-            CairoDesktop.WindowsTasksService.RegisterShellHookWindow(_HookWin.Handle);
-            WM_SHELLHOOKMESSAGE = CairoDesktop.WindowsTasksService.RegisterWindowMessage("SHELLHOOK");
+            NativeMethods.SetTaskmanWindow (_HookWin.Handle);
+            NativeMethods.RegisterShellHookWindow(_HookWin.Handle);
+            WM_SHELLHOOKMESSAGE = NativeMethods.RegisterWindowMessage("SHELLHOOK");
 
             Sound = new CairoDesktop.Sound.SoundAPI();
             Sound.Initialize(_HookWin.Handle);
@@ -132,11 +132,11 @@
                     {
                         case CairoDesktop.WindowsTasksService.HSHELL_WINDOWCREATED:
 
-                            CairoDesktop.SupportingClasses.NativeMethods.SetWindowPos (MenuBarPtr,
-                                (IntPtr)CairoDesktop.SupportingClasses.NativeMethods.HWND_TOPMOST, 0, 0, 0, 0, 0x0001 | 0x0002);
+                            NativeMethods.SetWindowPos (MenuBarPtr,
+                                (IntPtr)NativeMethods.HWND_TOPMOST, 0, 0, 0, 0, 0x0001 | 0x0002);
                             if(TaskBarPtr != IntPtr.Zero)
-                                CairoDesktop.SupportingClasses.NativeMethods.SetWindowPos (TaskBarPtr,
-                                    (IntPtr)CairoDesktop.SupportingClasses.NativeMethods.HWND_TOPMOST, 0, 0, 0, 0, 0x0001 | 0x0002);
+                                NativeMethods.SetWindowPos (TaskBarPtr,
+                                    (IntPtr)NativeMethods.HWND_TOPMOST, 0, 0, 0, 0, 0x0001 | 0x0002);
                             break;
 
                         case CairoDesktop.WindowsTasksService.HSHELL_WINDOWDESTROYED:
@@ -145,11 +145,11 @@
 
                         case CairoDesktop.WindowsTasksService.HSHELL_WINDOWREPLACING:
                         case CairoDesktop.WindowsTasksService.HSHELL_WINDOWREPLACED:
-                            CairoDesktop.SupportingClasses.NativeMethods.SetWindowPos (MenuBarPtr,
-                                (IntPtr)CairoDesktop.SupportingClasses.NativeMethods.HWND_TOPMOST, 0, 0, 0, 0, 0x0001 | 0x0002);
+                            NativeMethods.SetWindowPos (MenuBarPtr,
+                                (IntPtr)NativeMethods.HWND_TOPMOST, 0, 0, 0, 0, 0x0001 | 0x0002);
                             if(TaskBarPtr != IntPtr.Zero)
-                                CairoDesktop.SupportingClasses.NativeMethods.SetWindowPos (TaskBarPtr,
-                                    (IntPtr)CairoDesktop.SupportingClasses.NativeMethods.HWND_TOPMOST, 0, 0, 0, 0, 0x0001 | 0x0002);
+                                NativeMethods.SetWindowPos (TaskBarPtr,
+                                    (IntPtr)NativeMethods.HWND_TOPMOST, 0, 0, 0, 0, 0x0001 | 0x0002);
                             break;
 
                         case CairoDesktop.WindowsTasksService.HSHELL_WINDOWACTIVATED:
@@ -212,31 +212,6 @@
             else
             {
                 return true;
-            }
-        }
-
-        /// <summary>
-        /// Executes the first run sequence.
-        /// </summary>
-        /// <param name="app">References to the app object.</param>
-        private static void FirstRun(App app)
-        {
-            try
-            {
-                /*if (Properties.Settings.Default.IsFirstRun == true)
-                {
-                    Properties.Settings.Default.IsFirstRun = false;
-                    Properties.Settings.Default.EnableTaskbar = true;
-                    Properties.Settings.Default.Save();
-                    AppGrabber.AppGrabber.Instance.ShowDialog();
-                }*/
-            }
-            catch (Exception ex)
-            {
-                CairoMessage.Show(string.Format("Woops! Something bad happened in the startup process.\nCairo will probably run, but please report the following details (preferably as a screen shot...)\n\n{0}", ex), 
-                    "Unexpected error!", 
-                    MessageBoxButton.OK, 
-                    MessageBoxImage.Error);
             }
         }
 

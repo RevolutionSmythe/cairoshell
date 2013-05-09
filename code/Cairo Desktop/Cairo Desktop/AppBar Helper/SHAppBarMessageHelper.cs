@@ -3,8 +3,8 @@ namespace SHAppBarMessage1.Common
     using System;
     using System.Drawing;
     using System.Runtime.InteropServices;
-    using SHAppBarMessage1.Win32;
     using System.Diagnostics;
+    using CairoDesktop.Interop;
 
     public static class SHAppBarMessageHelper
     {
@@ -39,6 +39,8 @@ namespace SHAppBarMessage1.Common
 
         public static void ABSetPos(IntPtr handle, Size size)
         {
+            if (!isBarRegistered)
+                return;
             NativeMethods.APPBARDATA abd = new NativeMethods.APPBARDATA();
             abd.cbSize = Marshal.SizeOf(abd);
             abd.hWnd = handle;

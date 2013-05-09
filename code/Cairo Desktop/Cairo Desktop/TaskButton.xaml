@@ -45,7 +45,7 @@
         Click="btnClick" MouseDoubleClick="btn_MouseDoubleClick" Padding="0" Margin="0">
         <Button.ContextMenu>
             <ContextMenu Style="{StaticResource CairoContextMenuStyle}">
-                <MenuItem Foreground="Black" Header="Open New" Style="{StaticResource CairoMenuItemStyle}" Click="OpenNewInstance_Click_1" Name="OpenNewInstance" />
+                <MenuItem Foreground="Black" Header="Open New" Style="{StaticResource CairoMenuItemStyle}" Click="OpenNewInstance_Click" Name="OpenNewInstance" />
                 <MenuItem Foreground="Black" Header="Add to Taskbar" Style="{StaticResource CairoMenuItemStyle}" Click="Add_To_Menu_Click" Name="AddToTaskBar" />
                 <MenuItem Foreground="Black" Header="Remove from Taskbar" Style="{StaticResource CairoMenuItemStyle}" Click="Remove_From_Menu_Click" Name="RemoveFromTaskBar" />
                 <Separator Style="{StaticResource CairoMenuSeparatorStyle}" />

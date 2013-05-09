@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using CairoDesktop;
-using CairoDesktop.SupportingClasses;
 using System.Windows.Forms;
 using CoreAudioApi;
+using CairoDesktop.Interop;
 
 namespace CairoDesktop.Sound
 {
@@ -16,15 +16,14 @@ namespace CairoDesktop.Sound
         private const int VolumeMute = 252;
         private const int Windows = 253;
         private MMDevice m_device;
-        private bool m_bUpdate = true;
 
         public void Initialize (IntPtr handle)
         {
             MMDeviceEnumerator devEnum = new MMDeviceEnumerator ();
             m_device = devEnum.GetDefaultAudioEndpoint (EDataFlow.eRender, ERole.eMultimedia);
-            KeyboardRegistration.RegisterHotKey (handle, VolumeDown, KeyModifiers.None, Keys.VolumeDown);
-            KeyboardRegistration.RegisterHotKey (handle, VolumeUp, KeyModifiers.None, Keys.VolumeUp);
-            KeyboardRegistration.RegisterHotKey (handle, VolumeMute, KeyModifiers.None, Keys.VolumeMute);
+            NativeMethods.RegisterHotKey(handle, VolumeDown, NativeMethods.KeyModifiers.None, Keys.VolumeDown);
+            NativeMethods.RegisterHotKey(handle, VolumeUp, NativeMethods.KeyModifiers.None, Keys.VolumeUp);
+            NativeMethods.RegisterHotKey(handle, VolumeMute, NativeMethods.KeyModifiers.None, Keys.VolumeMute);
         }
 
         public void HandleKeypress (int param)
